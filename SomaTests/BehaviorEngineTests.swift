@@ -277,7 +277,7 @@ final class BehaviorEngineTests: XCTestCase {
             activeCalories: nil, stepCount: nil, vo2Max: nil,
             respiratoryRate: nil,
             sleepingHR: nil, sleepingHRV: nil,
-            sleepInterruptions: 4
+            sleepInterruptions: 5
         )
         let tips = BehaviorEngine.coachingTips(
             todayMetrics: metricsWithInterruptions,
