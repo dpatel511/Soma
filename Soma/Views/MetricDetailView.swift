@@ -52,6 +52,15 @@ enum DashboardMetric: String, Identifiable {
         case .stress:   return m.stressState
         }
     }
+
+    func dataCoverage(from m: DailyMetrics) -> Double? {
+        switch self {
+        case .recovery: return m.recoveryDataCoverage
+        case .sleep:    return m.sleepDataCoverage
+        case .strain:   return m.strainDataCoverage
+        case .stress:   return m.stressDataCoverage
+        }
+    }
 }
 
 // MARK: - MetricInsightGenerator
@@ -156,7 +165,7 @@ struct MetricInsightGenerator {
                 let deviation = base - rhr   // positive = lower than baseline = good
                 if deviation < -3 {
                     obs.append("Resting HR is \(Int(-deviation)) bpm above your usual \(String(format: "%.0f", base)) bpm — penalising recovery (25% weight)")
-                    acts.append("Elevated resting HR often signals dehydration, stress, or early illness — hydrate and rest")
+                    acts.append("Resting HR is above baseline. Consider hydration and rest, and monitor the trend alongside how you feel")
                 } else if deviation > 3 {
                     obs.append("Resting HR is \(Int(deviation)) bpm below your baseline — a positive recovery signal")
                 } else {
@@ -201,11 +210,11 @@ struct MetricInsightGenerator {
         guard let acr else { return nil }
         let fmt = String(format: "%.2f", acr)
         if acr > 1.3 {
-            return "ACR \(fmt) — training spike detected. Up to -10 pts applied to recovery."
+            return "Load ratio \(fmt) — recent recorded load is above your longer-term average. No automatic score penalty is applied."
         } else if acr < 0.8 {
-            return "ACR \(fmt) — training load has been low recently."
+            return "Load ratio \(fmt) — recent recorded load is below your longer-term average."
         }
-        return "ACR \(fmt) — training load is balanced."
+        return "Load ratio \(fmt) — recent and longer-term recorded loads are similar."
     }
 
     private static func strainInsights(metrics: DailyMetrics) -> (observations: [String], actions: [String]) {

@@ -385,9 +385,9 @@ struct ReadinessDetailView: View {
             if let acr = factors.acrRatio {
                 rowDivider
                 let acrColor: Color = acr > 1.3 ? .somaOrange : acr < 0.8 ? .somaBlue : .somaGreen
-                let acrNote = acr > 1.3 ? "Training spike (>1.3) — activity capped to Light"
-                            : acr < 0.8 ? "Training load has been low recently"
-                            : "Load is well balanced (0.8–1.3)"
+                let acrNote = acr > 1.3 ? "Recent load is above your longer-term average"
+                            : acr < 0.8 ? "Recent load is below your longer-term average"
+                            : "Recent and longer-term loads are similar"
                 signalRow(icon: "chart.line.uptrend.xyaxis", label: "Training Load (ACR)",
                           value: String(format: "%.2f", acr), note: acrNote, color: acrColor)
             }

@@ -14,7 +14,7 @@ struct TrendsRedesignView: View {
         case hrv      = "HRV"
         case stress   = "Stress"
         case strain   = "Strain"
-        case somaAge  = "Soma Age"
+        case somaAge  = "Experimental Health Age"
         var id: String { rawValue }
 
         var color: Color {

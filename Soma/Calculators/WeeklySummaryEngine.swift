@@ -155,9 +155,9 @@ struct WeeklySummaryEngine {
         let acr = TrainingGuidanceEngine.acrRatio(history: metrics)
         if let acr {
             if acr > 1.3 {
-                parts.append("Your acute-to-chronic ratio is elevated at \(String(format: "%.2f", acr)), signalling a recent spike in load — scaling back intensity next week is the smart play.")
+                parts.append("Recent recorded load is above the longer-term average (ratio \(String(format: "%.2f", acr))). Use soreness, fatigue, and performance alongside this context when planning next week.")
             } else if acr < 0.8 {
-                parts.append("Your training load has been consistently low (ACR \(String(format: "%.2f", acr))) — there's room to gradually increase intensity next week if recovery stays strong.")
+                parts.append("Recent recorded load is below the longer-term average (ratio \(String(format: "%.2f", acr))). A gradual increase may be reasonable if recovery and perceived effort support it.")
             }
         }
 

@@ -323,9 +323,12 @@ struct OnboardingView: View {
                     dataRow(icon: "bed.double.fill",    label: "Sleep Analysis",              desc: "Sleep score & stage breakdown")
                     dataRow(icon: "flame.fill",         label: "Active Energy & Steps",       desc: "Strain score")
                     dataRow(icon: "lungs.fill",         label: "VO2 Max & Respiratory Rate",  desc: "Fitness & respiratory insights")
-                    dataRow(icon: "thermometer.medium", label: "Wrist Temperature",           desc: "Illness arc detection")
+                    dataRow(icon: "thermometer.medium", label: "Wrist Temperature",           desc: "Temperature trend context")
                 }
                 .padding(.horizontal, 32)
+
+                WellnessDisclaimer(compact: true)
+                    .padding(.horizontal, 32)
             }
 
             Spacer()

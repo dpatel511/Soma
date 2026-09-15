@@ -95,12 +95,16 @@ struct StrainCalculator {
 
     // MARK: - Strain Score
 
-    /// Converts a raw StrainLoad to a 0–100 score relative to personal capacity.
+    /// Converts raw StrainLoad to a monotonic 0–100 score relative to personal capacity.
     ///
-    /// StrainScore = (StrainLoad / Capacity) × 100, clamped to 100.
+    /// Uses an exponential saturation curve rather than a linear ratio. A day at the
+    /// rolling personal capacity maps to ~63 instead of 100, preserving headroom for
+    /// genuinely harder days while still limiting extreme values asymptotically.
+    ///
+    /// StrainScore = 100 × (1 − exp(−StrainLoad / Capacity))
     static func score(load: Double, capacity: Double) -> Double {
-        guard capacity > 0 else { return 0 }
-        return min(100.0, (load / capacity) * 100.0)
+        guard load > 0, capacity > 0 else { return 0 }
+        return 100.0 * (1.0 - Foundation.exp(-load / capacity))
     }
 
     // MARK: - Capacity Model

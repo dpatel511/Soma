@@ -164,7 +164,7 @@ struct BehaviorEngine {
         // Low stand hours — only after 8 PM when the day is effectively over
         let currentHour = Calendar.current.component(.hour, from: Date())
         if let stand = todayMetrics.standHours, stand < 6, currentHour >= 20 {
-            tips.append("You only stood for \(stand)h today. Even a 5-minute walk each hour improves insulin sensitivity and recovery.")
+            tips.append("You only stood for \(stand)h today. Consider adding brief movement breaks when practical.")
         }
 
         // Irregular sleep schedule
@@ -179,7 +179,7 @@ struct BehaviorEngine {
 
         // Blood oxygen low
         if let spo2 = todayMetrics.bloodOxygen, spo2 < 92 {
-            tips.append("SpO2 is \(String(format: "%.1f", spo2))% — critically low. Skip intense training today and seek medical attention if this persists.")
+            tips.append("SpO2 is \(String(format: "%.1f", spo2))%, lower than the usual range. Recheck the reading and seek medical guidance if it persists or you have symptoms.")
         }
 
         // Walking HR elevated
@@ -189,18 +189,18 @@ struct BehaviorEngine {
 
         // VO2 Max trending down
         if let trend = todayMetrics.vo2MaxTrend, trend < -0.5 {
-            tips.append("Aerobic fitness is drifting down. Two 30-minute zone 2 sessions per week (easy conversational pace) will reverse the trend.")
+            tips.append("Aerobic fitness is trending down. Regular easy aerobic sessions may help improve it over time.")
         }
 
         // No mindfulness logged — suggest it
         if (todayMetrics.mindfulMinutes ?? 0) == 0,
            todayMetrics.stressScore > 45 {
-            tips.append("Stress is elevated and no mindfulness was logged. Even 5 minutes of focused breathing lowers cortisol and improves HRV.")
+            tips.append("Your physiological stress estimate is elevated. A brief breathing or mindfulness session may help you wind down.")
         }
 
         // High recovery — encourage training
         if todayMetrics.recoveryScore >= 80, tips.count < 2 {
-            tips.append("Recovery is excellent — your body is ready. A quality training session today will yield the best adaptation.")
+            tips.append("Your recent signals are favorable. Consider a quality training session if your perceived energy and soreness agree.")
         }
 
         // 3. Fallback: generic recommendation from recovery

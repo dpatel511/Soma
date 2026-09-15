@@ -94,7 +94,7 @@ struct DailyTrainingGuidance: Codable, Identifiable {
     let date: Date
     let readinessScore: Double      // 0–100
     let activityLevel: ActivityLevel
-    let targetStrainMin: Int        // adjusted for VO2Max multiplier + ACR cap
+    let targetStrainMin: Int        // adjusted for VO2Max multiplier
     let targetStrainMax: Int
     let suggestedWorkouts: [String]
     let fatigueFlags: [String]      // e.g. "Cardio/Legs", "Accumulated Training Load"

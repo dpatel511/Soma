@@ -63,8 +63,10 @@ This means a 10-minute gap between resting readings contributes the same as a 1-
 
 **Step 4 — StrainScore**:
 ```
-StrainScore = min(100, StrainLoad / Capacity × 100)
+StrainScore = 100 × (1 − exp(−StrainLoad / Capacity))
 ```
+
+The nonlinear curve preserves headroom: a day equal to personal capacity scores about 63, twice capacity about 86, and extreme loads approach 100 without reaching it.
 
 **Expected output ranges:**
 
@@ -88,10 +90,11 @@ StrainScore = min(100, StrainLoad / Capacity × 100)
 
 | Component      | Weight | Calculation |
 |----------------|--------|-------------|
-| Duration       | 30%    | `min(100, T/N × 100)` — T = total sleep, N = personalised sleep need |
-| Stage mix      | 30%    | `0.40×deep + 0.40×REM + 0.20×core` vs optimal ratios (20% / 22% / 50%) |
-| Sleeping HRV   | 15%    | Ratio vs 30-day HRV baseline; higher = better |
-| Sleeping HR    | 15%    | Ratio vs baseline; lower = better |
+| Duration       | 40%    | `min(100, T/N × 100)` — T = total sleep, N = personalised sleep need |
+| Efficiency     | 20%    | Time asleep ÷ time in bed; missing in-bed data is treated as neutral |
+| Stage mix      | 10%    | Low-weight context from deep/REM/core estimates |
+| Sleeping HRV   | 10%    | Ratio vs 30-day HRV baseline; higher = better |
+| Sleeping HR    | 10%    | Ratio vs baseline; lower = better |
 | Interruptions  | 10%    | `max(0, 100 − awake_segments × 15)` |
 
 **Sleep Need**: baseline sleep goal + sleep debt (3-day rolling, capped at 2 h/night) + strain factor (up to +1 h at max strain).
@@ -315,7 +318,7 @@ Soma/
 │   ├── BaselineCalculator.swift     # Rolling 30-day baselines, normalise, clamp, extractHistory
 │   ├── RecoveryCalculator.swift     # Recovery score 0–100 (40/25/25/10 weights)
 │   ├── StrainCalculator.swift       # Zone-load model: StrainLoad, capacity, StrainScore 0–100
-│   ├── SleepCalculator.swift        # Sleep score 0–100 (5 components) + sleep need
+│   ├── SleepCalculator.swift        # Sleep score 0–100 (6 components) + sleep need
 │   ├── StressCalculator.swift       # Stress 0–100 (daytime HRV + HR)
 │   ├── AyurvedicSleepCalculator.swift # Dosha-aware sleep quality scoring
 │   └── BehaviorEngine.swift         # Behavior–outcome correlations + coaching tips
@@ -356,11 +359,11 @@ SomaTests/
 
 ## Running Tests
 
-In Xcode: **Product → Test** (`Cmd+U`)
+In Xcode: **Product → Test** (`Cmd+U`). Pull requests and pushes to `main` also run the shared `Soma` scheme on a GitHub-hosted macOS runner via `.github/workflows/ios-ci.yml`.
 
 | Test file | Coverage |
 |-----------|----------|
-| `SleepCalculatorTests` | 5-component score, sleeping HRV/HR sub-scores, interruption score, sleep need, sleep debt |
+| `SleepCalculatorTests` | 6-component score, efficiency, sleeping HRV/HR sub-scores, interruption score, sleep need, sleep debt |
 | `RecoveryCalculatorTests` | 40/25/25/10 weights, nil baseline fallback, green-range assertion, training recommendation strings |
 | `StrainCalculatorTests` | Zone-time accumulation, HR zone classification, load/score/capacity model |
 | `WorkoutStrainTests` | Workout-aware strain, incidental vs workout load split |
@@ -375,14 +378,14 @@ In Xcode: **Product → Test** (`Cmd+U`)
 ### Read
 Heart rate samples, HRV (SDNN), resting heart rate, respiratory rate, VO2 max, active energy burned, step count, sleep analysis (stages + timing), sleep goal.
 
-### Write (optional)
-Dietary alcohol (grams, derived as 14 g/drink), dietary caffeine (mg, 200 mg per logged serving). Requires user consent. Written with source "Soma".
+### Write
+Soma currently requests no HealthKit write permissions. Journal entries remain local to the app.
 
 ---
 
 ## Requirements
 
-- Xcode 15+
+- Xcode 26.2+ (required by the current widget deployment target)
 - iOS 17.0+ deployment target
 - Swift 5.9
 - iPhone with Apple Watch for real HRV/sleep data — or use the `HealthDataProviding` protocol to inject mock data for development

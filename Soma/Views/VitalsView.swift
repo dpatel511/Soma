@@ -268,8 +268,8 @@ struct VitalsView: View {
         if let rr = metrics.respiratoryRate, rr > 18 { illnessHits += 1 }
         if illnessHits >= 2 {
             out.append(HealthSignal(
-                icon: "cross.case.fill", title: "Potential Illness Risk",
-                detail: "\(illnessHits) of 3 illness markers (temperature, resting HR, respiratory rate) are elevated together. Rest, hydrate, and avoid hard training.",
+                icon: "cross.case.fill", title: "Multiple Signals Above Baseline",
+                detail: "\(illnessHits) of 3 signals (temperature, resting HR, respiratory rate) are elevated. This is not a diagnosis; monitor how you feel and seek medical guidance when concerned.",
                 color: .somaRed))
         }
 

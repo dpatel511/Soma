@@ -270,7 +270,7 @@ final class NotificationScheduler {
 
         // Wrist temperature (illness risk)
         if let temp = metrics.wristTempDeviation, temp > 0.5 {
-            alerts.append((0, String(format: "Wrist temp +%.1f°C above baseline — possible illness signal", temp)))
+            alerts.append((0, String(format: "Wrist temp +%.1f°C above baseline — monitor the trend and how you feel", temp)))
         }
 
         // HRV below baseline

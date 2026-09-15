@@ -1,0 +1,78 @@
+name: iOS CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show build environment
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - name: Select an available iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          simulator_udid="$(
+            xcrun simctl list devices available --json | python3 -c '
+          import json
+          import re
+          import sys
+
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted(
+              devices,
+              key=lambda runtime: tuple(map(int, re.findall(r"\d+", runtime))),
+              reverse=True,
+          )
+          for runtime in runtimes:
+              for device in devices[runtime]:
+                  if device.get("isAvailable") and device["name"].startswith("iPhone"):
+                      print(device["udid"])
+                      raise SystemExit
+          raise SystemExit("No available iPhone simulator found")
+          '
+          )"
+          echo "udid=$simulator_udid" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$simulator_udid" || true
+          xcrun simctl bootstatus "$simulator_udid" -b
+
+      - name: Build and run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Soma.xcodeproj \
+            -scheme Soma \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            -derivedDataPath "$RUNNER_TEMP/SomaDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/SomaTests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SomaTests-xcresult
+          path: ${{ runner.temp }}/SomaTests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

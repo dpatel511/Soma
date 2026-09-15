@@ -351,12 +351,12 @@ enum SomaAgeNotification {
         guard abs(delta) >= 0.1 else { return nil }
         let yr = String(format: "%.1f", abs(delta))
         if delta < 0 {
-            return "Your Soma Age dropped by \(yr) years this week. Keep it up."
+            return "Your experimental health-age estimate decreased by \(yr) this week. Treat short-term changes cautiously."
         }
         if let driver = topNegativeDriver {
-            return "Your Soma Age rose by \(yr) years this week, driven by \(driver.lowercased())."
+            return "Your experimental health-age estimate increased by \(yr) this week, with \(driver.lowercased()) as the largest modeled factor."
         }
-        return "Your Soma Age rose by \(yr) years this week."
+        return "Your experimental health-age estimate increased by \(yr) this week. Treat short-term changes cautiously."
     }
 
     /// Milestone message when the user crosses a new whole-year "younger" threshold.
@@ -367,6 +367,6 @@ enum SomaAgeNotification {
         let prevYounger  = Int(floor(-Swift.min(previousDelta, 0)))
         guard yearsYounger > prevYounger, yearsYounger >= 1 else { return nil }
         let s = yearsYounger == 1 ? "year" : "years"
-        return "Milestone: you're now \(yearsYounger) \(s) younger biologically than your actual age."
+        return "Your experimental health-age estimate is now \(yearsYounger) \(s) below your chronological age. This is a wellness estimate, not a biological-age measurement."
     }
 }

@@ -24,10 +24,11 @@ struct SleepCalculator {
     /// Calculates sleep score 0–100.
     ///
     /// Weights:
-    ///   Duration     (30%): min(100, T/N × 100)
-    ///   Stage mix    (30%): weighted deep/REM/core vs optimal ratios
-    ///   HRV sleep    (15%): sleeping HRV relative to baseline
-    ///   HR sleep     (15%): sleeping HR relative to baseline (lower = better)
+    ///   Duration     (40%): min(100, T/N × 100)
+    ///   Efficiency   (20%): time asleep / time in bed
+    ///   Stage mix    (10%): low-weight context because wearable stage estimates are noisy
+    ///   HRV sleep    (10%): sleeping HRV relative to baseline
+    ///   HR sleep     (10%): sleeping HR relative to baseline (lower = better)
     ///   Interruptions(10%): wake segments during sleep
     ///
     /// When sleeping HRV/HR data is unavailable those components default to 50 (neutral).
@@ -48,7 +49,20 @@ struct SleepCalculator {
         // 1. Duration — naps count toward sleep need
         let durationScore = min(100.0, totalHours / sleepNeed * 100.0)
 
-        // 2. Stage quality — ratios use night sleep only as denominator. Apple
+        // 2. Sleep efficiency. Some HealthKit sources omit in-bed samples; in that
+        // case use a neutral value rather than treating missing data as perfect sleep.
+        let efficiencyScore: Double
+        if sleep.inBedDuration > 0 {
+            efficiencyScore = BaselineCalculator.clamp(
+                sleep.totalDuration / sleep.inBedDuration * 100.0,
+                min: 0,
+                max: 100
+            )
+        } else {
+            efficiencyScore = 50
+        }
+
+        // 3. Stage context — ratios use night sleep only as denominator. Apple
         // Health rarely logs deep/REM during daytime naps, so blending naps in
         // would artificially deflate the stage mix.
         let stageScore: Double
@@ -66,19 +80,20 @@ struct SleepCalculator {
             stageScore = 0
         }
 
-        // 3. HRV during sleep (higher = better; ratio vs baseline)
+        // 4. HRV during sleep (higher = better; ratio vs baseline)
         let hrvScore = computeSleepingHRVScore(sleepingHRV: sleepingHRV, baseline: hrvBaseline)
 
-        // 4. Heart rate during sleep (lower = better; ratio vs baseline)
+        // 5. Heart rate during sleep (lower = better; ratio vs baseline)
         let hrScore = computeSleepingHRScore(sleepingHR: sleepingHR, baseline: sleepingHRBaseline)
 
-        // 5. Interruptions
+        // 6. Interruptions
         let interruptionScore = computeInterruptionScore(count: sleep.interruptionCount)
 
-        let score = 0.30 * durationScore
-                  + 0.30 * stageScore
-                  + 0.15 * hrvScore
-                  + 0.15 * hrScore
+        let score = 0.40 * durationScore
+                  + 0.20 * efficiencyScore
+                  + 0.10 * stageScore
+                  + 0.10 * hrvScore
+                  + 0.10 * hrScore
                   + 0.10 * interruptionScore
 
         return BaselineCalculator.clamp(score, min: 0, max: 100)

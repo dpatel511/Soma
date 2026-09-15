@@ -141,7 +141,7 @@ final class InsightsViewModel: ObservableObject {
                 results.append(Insight(
                     icon: "heart.fill",
                     title: "HRV Elevated",
-                    description: "Your HRV is above baseline — your body is primed and well recovered.",
+                    description: "Your HRV is above its recent baseline, which can be a favorable recovery signal.",
                     priority: .low
                 ))
             }
@@ -324,7 +324,7 @@ final class InsightsViewModel: ObservableObject {
             results.append(Insight(
                 icon: "star.fill",
                 title: "Great Recovery Streak",
-                description: "You've had \(last7.filter({ $0.recoveryScore >= 70 }).count) high-recovery days this week. Your body is primed — a quality training session will pay off.",
+                description: "You've had \(last7.filter({ $0.recoveryScore >= 70 }).count) days with favorable recovery estimates this week. Consider a quality session when perceived energy and soreness agree.",
                 priority: .low
             ))
         }
@@ -344,7 +344,7 @@ final class InsightsViewModel: ObservableObject {
             results.append(Insight(
                 icon: "heart.slash.fill",
                 title: "Elevated Resting HR",
-                description: "Resting HR is \(Int(rhr - base)) bpm above your baseline — a common sign of incomplete recovery, dehydration, or early illness.",
+                description: "Resting HR is \(Int(rhr - base)) bpm above your baseline. This can have many causes; watch the trend and how you feel.",
                 priority: .medium
             ))
         }
@@ -382,7 +382,7 @@ final class InsightsViewModel: ObservableObject {
             results.append(Insight(
                 icon: "drop.circle.fill",
                 title: "Low Blood Oxygen",
-                description: "SpO2 is \(String(format: "%.1f", spo2))% — below the healthy threshold. Avoid intense exercise. Persistent low readings warrant medical attention.",
+                description: "SpO2 is \(String(format: "%.1f", spo2))%, lower than the usual range. Recheck it; seek medical guidance if readings stay low or you have symptoms.",
                 priority: .high
             ))
         }
@@ -393,7 +393,7 @@ final class InsightsViewModel: ObservableObject {
             results.append(Insight(
                 icon: "lungs.fill",
                 title: "Elevated Respiratory Rate",
-                description: "Resting respiratory rate is \(String(format: "%.1f", rr)) br/min — above the healthy threshold of 20. Can indicate stress, illness, or poor sleep quality.",
+                description: "Respiratory rate is \(String(format: "%.1f", rr)) br/min, above the reference used by Soma. Compare it with your baseline and how you feel.",
                 priority: .medium
             ))
         }
@@ -451,7 +451,7 @@ final class InsightsViewModel: ObservableObject {
             results.append(Insight(
                 icon: "thermometer.medium",
                 title: "Elevated Wrist Temp",
-                description: "Sleeping wrist temperature is \(formatted) above your baseline — a possible early illness signal. Consider rest and hydration.",
+                description: "Sleeping wrist temperature is \(formatted) above your baseline. Temperature changes have many causes; monitor the trend and how you feel.",
                 priority: .high
             ))
         }

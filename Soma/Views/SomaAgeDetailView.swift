@@ -6,12 +6,12 @@ import Charts
 enum SomaAgeFormat {
     static func age(_ value: Double) -> String { String(format: "%.1f", value) }
 
-    /// "3.6 years younger" / "5.8 years older" / "on track".
+    /// "3.6 below your chronological age" / "5.8 above" / "near your chronological age".
     static func deltaPhrase(_ delta: Double) -> String {
         let abs = Swift.abs(delta)
         if abs < 0.1 { return "On track with your age" }
         let yr = String(format: "%.1f", abs)
-        return delta < 0 ? "\(yr) years younger" : "\(yr) years older"
+        return delta < 0 ? "\(yr) below your chronological age" : "\(yr) above your chronological age"
     }
 
     static func deltaColor(_ delta: Double) -> Color {
@@ -56,7 +56,7 @@ struct SomaAgeDetailView: View {
                 .padding()
             }
             .background(Color.somaBackground.ignoresSafeArea())
-            .navigationTitle("Soma Age")
+            .navigationTitle("Experimental Health Age")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -70,7 +70,7 @@ struct SomaAgeDetailView: View {
 
     private func header(_ result: SomaAgeCalculator.Result) -> some View {
         VStack(spacing: 6) {
-            Text("Biological Age")
+            Text("Experimental Estimate")
                 .font(.subheadline).foregroundColor(.secondary)
             Text(SomaAgeFormat.age(result.biologicalAge))
                 .font(.system(size: 64, weight: .bold, design: .rounded))
@@ -143,7 +143,7 @@ struct SomaAgeDetailView: View {
     private func breakdownCard(_ result: SomaAgeCalculator.Result) -> some View {
         card {
             Text("Age Breakdown").font(.headline)
-            Text("How each area moves your biological age.")
+            Text("How each area changes this unvalidated wellness estimate.")
                 .font(.caption).foregroundColor(.secondary)
             let maxMag = max(0.5, result.contributions.map { Swift.abs($0.years) }.max() ?? 0.5)
             ForEach(result.contributions, id: \.category) { c in
@@ -219,7 +219,7 @@ struct SomaAgeDetailView: View {
     private func opportunitiesCard(_ result: SomaAgeCalculator.Result) -> some View {
         card {
             Text("Top Opportunities").font(.headline)
-            Text("The fastest ways to lower your Soma Age.")
+            Text("Potential ways to improve the signals in this estimate.")
                 .font(.caption).foregroundColor(.secondary)
             ForEach(Array(result.opportunities.prefix(3).enumerated()), id: \.offset) { _, opp in
                 opportunityRow(opp)
@@ -287,7 +287,7 @@ struct SomaAgeDetailView: View {
                     .foregroundColor(.somaBlue)
                 Text("Calibrating").font(.headline)
             }
-            Text("We need 21 days of data — including 14 nights of sleep and 10 days of recovery — before estimating your Soma Age.")
+            Text("We need 21 days of data — including 14 nights of sleep and 10 days of recovery — before showing this experimental estimate.")
                 .font(.subheadline).foregroundColor(.secondary)
 
             ProgressView(value: calibration.progress)
@@ -319,7 +319,7 @@ struct SomaAgeDetailView: View {
     }
 
     private var disclaimer: some View {
-        Text("Soma Age is an estimate of physiological age based on long-term health trends. It is not a medical diagnosis.")
+        Text("Experimental Health Age is an unvalidated wellness estimate based on selected Apple Health trends. It is not a biological-age measurement or a medical diagnosis.")
             .font(.caption2).foregroundColor(.secondary)
             .multilineTextAlignment(.center)
             .padding(.top, 4)

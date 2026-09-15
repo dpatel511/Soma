@@ -160,12 +160,12 @@ final class SomaAgeCalculatorTests: XCTestCase {
 
     func test_notification_dropIsPositive() {
         let msg = SomaAgeNotification.weeklyChangeMessage(previous: 27.0, current: 26.6)
-        XCTAssertTrue(msg!.contains("dropped by 0.4 years"))
+        XCTAssertTrue(msg!.contains("decreased by 0.4"))
     }
 
     func test_notification_riseNamesDriver() {
         let msg = SomaAgeNotification.weeklyChangeMessage(previous: 26.0, current: 26.3, topNegativeDriver: "Poor Sleep Duration")
-        XCTAssertTrue(msg!.contains("rose by 0.3 years"))
+        XCTAssertTrue(msg!.contains("increased by 0.3"))
         XCTAssertTrue(msg!.contains("poor sleep duration"))
     }
 
@@ -176,7 +176,7 @@ final class SomaAgeCalculatorTests: XCTestCase {
     func test_milestone_crossingNewYear() {
         // Was 4.6 younger, now 5.1 younger → crosses the "5 years younger" milestone.
         let msg = SomaAgeNotification.milestoneMessage(delta: -5.1, previousDelta: -4.6)
-        XCTAssertEqual(msg, "Milestone: you're now 5 years younger biologically than your actual age.")
+        XCTAssertEqual(msg, "Your experimental health-age estimate is now 5 years below your chronological age. This is a wellness estimate, not a biological-age measurement.")
     }
 
     func test_milestone_noCrossing_returnsNil() {

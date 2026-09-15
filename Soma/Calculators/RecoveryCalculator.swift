@@ -7,7 +7,6 @@ struct RecoveryInput {
     var rhrBaseline: Double?
     var sleepScore: Double        // 0–100
     var yesterdayStrain: Double   // 0–21
-    var acr: Double? = nil        // Acute-to-Chronic Ratio; penalty applied when > 1.3
     /// Recent HRV values (oldest → newest) for the personal log-domain z-score.
     /// When supplied (≥ minDaysRequired), the HRV component uses a z-score against the
     /// individual's own variability instead of a fixed ±50% ratio band.
@@ -29,14 +28,6 @@ struct RecoveryCalculator {
 
         var recovery = 0.40 * hrv + 0.25 * rhr + 0.25 * sleep + 0.10 * strainRecovery
 
-        // ACR penalty: when Acute-to-Chronic Ratio > 1.3, apply up to -10 pts
-        // Excess capped at 0.7 (ratio 1.3→2.0) maps linearly to 0→10 point deduction.
-        if let acr = input.acr, acr > 1.3 {
-            let excess  = min(acr - 1.3, 0.7)
-            let penalty = (excess / 0.7) * 10.0
-            recovery -= penalty
-        }
-
         // Offset benign physiology (e.g. normal late-luteal HRV/RHR shifts) so it isn't
         // misread as poor recovery. Zero unless a caller supplies an adjustment.
         recovery += input.recoveryAdjustment
@@ -54,13 +45,13 @@ struct RecoveryCalculator {
         var base: String
         switch recovery {
         case 67...100:
-            base = "Peak day — push intensity. Your body is recovered."
+            base = "Your recent signals are near or above baseline. Consider a higher-intensity session if you feel ready."
         case 50..<67:
-            base = "Moderate day — steady training is fine."
+            base = "Your recent signals support a steady session if you feel ready."
         case 34..<50:
-            base = "Easy day — stick to low intensity."
+            base = "Some signals are below baseline. Consider keeping intensity low."
         default:
-            base = "Rest day — prioritize recovery and sleep."
+            base = "Several signals are below baseline. Consider prioritizing rest and sleep."
         }
 
         var suffixes: [String] = []

@@ -80,7 +80,18 @@ final class StrainCalculatorTests: XCTestCase {
     func test_score_heavyActivity_highScore() {
         let load = 450.0
         let score = StrainCalculator.score(load: load, capacity: 350)
-        XCTAssertEqual(score, 100, accuracy: 0.01)
+        XCTAssertEqual(score, 72.35, accuracy: 0.1)
+    }
+
+    func test_score_atPersonalCapacity_preservesHeadroom() {
+        let score = StrainCalculator.score(load: 350, capacity: 350)
+        XCTAssertEqual(score, 63.21, accuracy: 0.1)
+    }
+
+    func test_score_twicePersonalCapacity_isHighButBelow100() {
+        let score = StrainCalculator.score(load: 700, capacity: 350)
+        XCTAssertEqual(score, 86.47, accuracy: 0.1)
+        XCTAssertLessThan(score, 100)
     }
 
     func test_score_alwaysClamped0To100() {

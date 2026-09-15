@@ -136,6 +136,24 @@ struct StatePill: View {
     }
 }
 
+// MARK: - Wellness Disclaimer
+
+struct WellnessDisclaimer: View {
+    var compact = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "heart.text.clipboard")
+                .foregroundStyle(Color.somaBlue)
+            Text("Soma provides wellness estimates from Apple Health data. It does not diagnose, treat, or replace advice from a qualified healthcare professional.")
+                .font(compact ? .caption2 : .caption)
+                .foregroundStyle(Color.somaTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 // MARK: - Section Header
 
 struct SectionHeader: View {

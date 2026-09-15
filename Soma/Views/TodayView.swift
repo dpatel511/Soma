@@ -24,6 +24,11 @@ struct TodayView: View {
         viewModel.trainingGuidance?.readinessScore ?? metrics.recoveryScore
     }
     private var readinessState: ColorState { ColorState.recovery(score: readiness) }
+    private var readinessDataCoverage: Double? {
+        let values = [metrics.recoveryDataCoverage, metrics.sleepDataCoverage].compactMap { $0 }
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
 
     var body: some View {
         NavigationStack {
@@ -139,6 +144,14 @@ struct TodayView: View {
                 .padding(.horizontal, Space.sm)
                 .padding(.top, 8)
 
+            if let coverage = readinessDataCoverage {
+                Text("DATA COVERAGE · \(Int((coverage * 100).rounded()))%")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(coverage >= 0.75 ? Color.somaTextTertiary : Color.somaYellow)
+                    .accessibilityLabel("Readiness data coverage \(Int((coverage * 100).rounded())) percent")
+            }
+
             Divider().overlay(Color.somaHairline)
                 .padding(.top, 2)
 
@@ -176,11 +189,11 @@ struct TodayView: View {
 
     private var headline: String {
         switch readiness {
-        case 80...100: return "Peak readiness — your body is primed to perform."
-        case 65..<80:  return "Strong day. You're cleared to train hard."
-        case 45..<65:  return "Moderate readiness. Train steady, don't overreach."
-        case 25..<45:  return "Low readiness. Keep it light and prioritize recovery."
-        default:       return "Recovery first. Rest, hydrate, and sleep early."
+        case 80...100: return "Recent signals are favorable. Train to how you feel."
+        case 65..<80:  return "Signals support training if energy and soreness agree."
+        case 45..<65:  return "Mixed signals today. Consider a steady session."
+        case 25..<45:  return "Several signals are below baseline. Consider keeping it light."
+        default:       return "Recovery signals are low. Consider rest and extra sleep."
         }
     }
 
@@ -446,13 +459,14 @@ struct TodayView: View {
     private func coreTile(_ m: DashboardMetric) -> some View {
         let score = m.score(from: metrics)
         let state = m.state(from: metrics)
+        let hasSufficientData = m.dataCoverage(from: metrics).map { $0 >= 0.5 } ?? true
         return Button { Haptics.tap(); activeMetric = m } label: {
             SignalTile(
                 icon: m.systemImage, title: m.title,
-                value: score > 0 ? "\(Int(score))" : "—", unit: "",
-                baseline: state.label,
+                value: hasSufficientData ? "\(Int(score.rounded()))" : "—", unit: "",
+                baseline: hasSufficientData ? state.label : "Low data",
                 deviationText: nil, color: state.color,
-                trend: coreTrend(m)
+                trend: hasSufficientData ? coreTrend(m) : .flat
             )
         }
         .buttonStyle(.plain)
@@ -497,8 +511,8 @@ struct TodayView: View {
         if viewModel.illnessArcActive {
             alerts.insert(Insight(
                 icon: "thermometer.medium",
-                title: "Illness Arc — \(viewModel.illnessArcDays) night\(viewModel.illnessArcDays == 1 ? "" : "s")",
-                description: "Elevated wrist temperature detected. Strain targets are paused — focus on rest, hydration, and sleep.",
+                title: "Elevated Temperature Trend — \(viewModel.illnessArcDays) night\(viewModel.illnessArcDays == 1 ? "" : "s")",
+                description: "Wrist temperature is above baseline. This is not a diagnosis; strain targets are paused while you monitor the trend and how you feel.",
                 priority: .high
             ), at: 0)
         }

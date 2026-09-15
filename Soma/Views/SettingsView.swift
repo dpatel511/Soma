@@ -398,6 +398,9 @@ struct SettingsView: View {
                     Spacer()
                 }
                 .padding(.vertical, 12)
+                hairline
+                WellnessDisclaimer()
+                    .padding(.vertical, 12)
             }
         }
     }

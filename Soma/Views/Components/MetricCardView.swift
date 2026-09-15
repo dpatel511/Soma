@@ -7,12 +7,17 @@ struct MetricCardView: View {
     let state: ColorState
     let sparklineValues: [Double]
     var weekDelta: Double? = nil
+    var dataCoverage: Double? = nil
 
     @State private var appeared = false
 
     private var progress: Double {
-        guard maxScore > 0 else { return 0 }
+        guard hasSufficientData, maxScore > 0 else { return 0 }
         return score / maxScore
+    }
+
+    private var hasSufficientData: Bool {
+        dataCoverage.map { $0 >= 0.5 } ?? true
     }
 
     private var isExcellent: Bool {
@@ -29,13 +34,13 @@ struct MetricCardView: View {
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
                 Spacer()
-                Text(state.label)
+                Text(hasSufficientData ? state.label : "Low data")
                     .font(.caption2)
                     .fontWeight(.semibold)
-                    .foregroundColor(state.color)
+                    .foregroundColor(hasSufficientData ? state.color : Color.somaYellow)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
-                    .background(state.color.opacity(0.15))
+                    .background((hasSufficientData ? state.color : Color.somaYellow).opacity(0.15))
                     .clipShape(Capsule())
             }
 
@@ -54,7 +59,7 @@ struct MetricCardView: View {
                 .frame(width: 64, height: 64)
                 .shadow(color: isExcellent ? state.color.opacity(0.4) : .clear, radius: 10, x: 0, y: 0)
 
-                if let delta = weekDelta, !delta.isNaN, abs(delta) >= 1 {
+                if hasSufficientData, let delta = weekDelta, !delta.isNaN, abs(delta) >= 1 {
                     VStack(spacing: 2) {
                         Image(systemName: delta > 0 ? "arrow.up" : "arrow.down")
                             .font(.system(size: 9, weight: .bold))
@@ -93,6 +98,7 @@ struct MetricCardView: View {
     }
 
     private var scoreText: String {
+        guard hasSufficientData else { return "--" }
         if score.isNaN || score.isInfinite { return "--" }
         return "\(Int(score.rounded()))"
     }

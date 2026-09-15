@@ -12,20 +12,12 @@ struct StressCalculator {
         daytimeHRV: Double?,
         daytimeAvgHR: Double?,
         hrvBaseline: Double?,
-        rhrBaseline: Double?,
-        mindfulMinutes: Double? = nil
+        rhrBaseline: Double?
     ) -> Double {
         let hrvSuppression = computeHRVSuppression(daytimeHRV: daytimeHRV, baseline: hrvBaseline)
         let hrElevation = computeHRElevation(daytimeAvgHR: daytimeAvgHR, rhrBaseline: rhrBaseline)
 
-        var stress = (0.6 * hrvSuppression + 0.4 * hrElevation) * 100
-
-        // Mindful minutes bonus: 10–60 min maps linearly to up to -5 pts.
-        // Encourages meditation by creating a visible feedback loop.
-        if let mins = mindfulMinutes, mins >= 10 {
-            let bonus = min((mins - 10) / 50.0, 1.0) * 5.0  // 0→5 across 10→60 min
-            stress -= bonus
-        }
+        let stress = (0.6 * hrvSuppression + 0.4 * hrElevation) * 100
 
         return BaselineCalculator.clamp(stress, min: 0, max: 100)
     }

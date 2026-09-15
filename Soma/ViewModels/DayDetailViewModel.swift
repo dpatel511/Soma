@@ -237,7 +237,7 @@ final class DayDetailViewModel: ObservableObject {
 
         // SpO2
         if let spo2 = metrics.bloodOxygen, spo2 < 92 {
-            tips.append(String(format: "Blood oxygen was critically low at %.1f%% — high-intensity training would not have been advisable.", spo2))
+            tips.append(String(format: "Blood oxygen was %.1f%%, lower than the usual range. A repeat reading and symptom context are important.", spo2))
         }
 
         // Walking HR elevated
@@ -252,7 +252,7 @@ final class DayDetailViewModel: ObservableObject {
 
         // Wrist temp
         if let dev = metrics.wristTempDeviation, dev > 0.5 {
-            tips.append(String(format: "Wrist temperature was +%.2f °C above baseline — possible physiological stress or early illness signal.", dev))
+            tips.append(String(format: "Wrist temperature was +%.2f °C above baseline. Temperature changes have many possible causes.", dev))
         }
 
         // VO2 trend

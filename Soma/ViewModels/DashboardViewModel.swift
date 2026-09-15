@@ -351,10 +351,6 @@ final class DashboardViewModel: ObservableObject {
         // Falls back to daytime HRV average only if no sleep window was detected.
         let recoveryHRV = sleepingHRV ?? todayHRV
 
-        // ACR: compute before recovery so penalty can feed into RecoveryCalculator
-        let acrHistory = store.loadLast(28)
-        let acr = TrainingGuidanceEngine.acrRatio(history: acrHistory)
-
         let recoveryScore = RecoveryCalculator.calculate(input: RecoveryInput(
             todayHRV: recoveryHRV,
             hrvBaseline: hrvBaseline,
@@ -362,22 +358,11 @@ final class DashboardViewModel: ObservableObject {
             rhrBaseline: rhrBaseline,
             sleepScore: sleepScore,
             yesterdayStrain: yesterdayStrain_0_21,
-            acr: acr,
             hrvHistory: hrvHist.sorted { $0.0 < $1.0 }.map { $0.1 }
             // FUTURE (women): recoveryAdjustment: cycleRecoveryAdjustment — see above.
         ))
 
-        // Daytime stress (8AM – 8PM) + mindful minutes bonus
-        // If HealthKit has no mindful session data but the manual Check-In shows "Meditated",
-        // use a conservative 15-min proxy so the feedback loop closes even without a mindfulness app.
-        let todayCheckIn = checkInStore.loadAll().first {
-            Calendar.current.isDateInToday($0.date) || Calendar.current.isDateInYesterday($0.date)
-        }
-        let effectiveMindfulMins: Double? = {
-            if mindfulMinsVal > 0 { return mindfulMinsVal }
-            if todayCheckIn?.meditated == true { return 15 }
-            return nil
-        }()
+        // Daytime stress (8AM – 8PM), derived only from available sensor inputs.
         // Exclude workout windows + activity-elevated samples so movement isn't
         // misread as autonomic stress. HR elevation is then measured from calm
         // periods only, matching how dedicated stress trackers work.
@@ -391,9 +376,30 @@ final class DashboardViewModel: ObservableObject {
             daytimeHRV: todayHRV,
             daytimeAvgHR: StressCalculator.average(daytimeSamples),
             hrvBaseline: hrvBaseline,
-            rhrBaseline: rhrBaseline,
-            mindfulMinutes: effectiveMindfulMins
+            rhrBaseline: rhrBaseline
         )
+
+        // Weighted input availability. This describes data completeness, not sensor
+        // accuracy or clinical confidence, and is stored with the score for UI context.
+        let recoveryDataCoverage =
+            (recoveryHRV != nil && hrvBaseline != nil ? 0.40 : 0) +
+            (rhrValue != nil && rhrBaseline != nil ? 0.25 : 0) +
+            (sleepData.totalDuration > 0 ? 0.25 : 0) +
+            (store.load(for: previousDay) != nil ? 0.10 : 0)
+
+        let hasStages = sleepData.deepSleepDuration + sleepData.remSleepDuration + sleepData.coreSleepDuration > 0
+        let sleepDataCoverage =
+            (sleepData.totalDuration + sleepData.napDurationSeconds > 0 ? 0.40 : 0) +
+            (sleepData.inBedDuration > 0 ? 0.20 : 0) +
+            (hasStages ? 0.10 : 0) +
+            (sleepingHRV != nil && hrvBaseline != nil ? 0.10 : 0) +
+            (sleepingHR != nil && sleepingHRBaseline != nil ? 0.10 : 0) +
+            (sleepData.totalDuration > 0 ? 0.10 : 0)
+
+        let strainDataCoverage = hrData.count > 1 ? 1.0 : 0.0
+        let stressDataCoverage =
+            (todayHRV != nil && hrvBaseline != nil ? 0.60 : 0) +
+            (!daytimeSamples.isEmpty && rhrBaseline != nil ? 0.40 : 0)
 
         // Evening stress (8PM – 11PM) — HR elevation only since HRV isn't windowed separately
         let eveningSamples = StressCalculator.filterSedentary(
@@ -459,6 +465,15 @@ final class DashboardViewModel: ObservableObject {
             strainScore: strainScore,
             sleepScore: sleepScore,
             stressScore: stressScore,
+            recoveryDataCoverage: recoveryDataCoverage,
+            strainDataCoverage: strainDataCoverage,
+            sleepDataCoverage: sleepDataCoverage,
+            stressDataCoverage: stressDataCoverage,
+            scoreAlgorithmVersion: DailyMetrics.currentScoreAlgorithmVersion,
+            recoveryConfidence: ScoreConfidence.from(dataCoverage: recoveryDataCoverage),
+            strainConfidence: ScoreConfidence.from(dataCoverage: strainDataCoverage),
+            sleepConfidence: ScoreConfidence.from(dataCoverage: sleepDataCoverage),
+            stressConfidence: ScoreConfidence.from(dataCoverage: stressDataCoverage),
             hrvAverage: todayHRV,
             restingHR: rhrValue,
             sleepDurationHours: sleepData.totalDurationHours + sleepData.napDurationSeconds / 3600.0,
@@ -579,7 +594,7 @@ final class DashboardViewModel: ObservableObject {
 
         // 3.1 — Illness arc override: force Rest, disable all strain targets.
         if illnessArcActive {
-            let illnessExplanation = "Elevated wrist temperature detected for \(illnessArcDays) consecutive night\(illnessArcDays == 1 ? "" : "s"). All strain targets are disabled — your body needs rest and recovery above all else right now."
+            let illnessExplanation = "Wrist temperature has been above baseline for \(illnessArcDays) consecutive night\(illnessArcDays == 1 ? "" : "s"). This is not a diagnosis. Strain targets are paused; consider rest and use symptoms and professional advice to guide decisions."
             guidance = DailyTrainingGuidance(
                 date: metrics.date,
                 readinessScore: guidance.readinessScore,
@@ -587,7 +602,7 @@ final class DashboardViewModel: ObservableObject {
                 targetStrainMin: 0,
                 targetStrainMax: 0,
                 suggestedWorkouts: ["Rest", "Short walk", "Stretching", "Meditation"],
-                fatigueFlags: ["Illness Arc"],
+                fatigueFlags: ["Elevated Temperature Trend"],
                 factors: guidance.factors,
                 explanation: illnessExplanation
             )

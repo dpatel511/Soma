@@ -114,7 +114,7 @@ final class RecoveryCalculatorTests: XCTestCase {
             last3DayStrainAvg: 10,
             sleepDebtHours: 0
         )
-        XCTAssertTrue(rec.contains("Peak day"))
+        XCTAssertTrue(rec.contains("near or above baseline"))
     }
 
     func test_recommendation_yellowHighRecovery() {
@@ -123,7 +123,7 @@ final class RecoveryCalculatorTests: XCTestCase {
             last3DayStrainAvg: 8,
             sleepDebtHours: 0
         )
-        XCTAssertTrue(rec.contains("Moderate day"))
+        XCTAssertTrue(rec.contains("steady session"))
     }
 
     func test_recommendation_yellowLowRecovery() {
@@ -132,7 +132,7 @@ final class RecoveryCalculatorTests: XCTestCase {
             last3DayStrainAvg: 8,
             sleepDebtHours: 0
         )
-        XCTAssertTrue(rec.contains("Easy day"))
+        XCTAssertTrue(rec.contains("keeping intensity low"))
     }
 
     func test_recommendation_redRecovery() {
@@ -141,7 +141,7 @@ final class RecoveryCalculatorTests: XCTestCase {
             last3DayStrainAvg: 8,
             sleepDebtHours: 0
         )
-        XCTAssertTrue(rec.contains("Rest day"))
+        XCTAssertTrue(rec.contains("prioritizing rest"))
     }
 
     func test_recommendation_appendsDeloadWarning() {

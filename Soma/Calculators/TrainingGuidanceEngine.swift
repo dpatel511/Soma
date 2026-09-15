@@ -22,8 +22,8 @@ struct TrainingGuidanceEngine {
     // MARK: - Acute-to-Chronic Ratio (ACR)
 
     /// 7-day avg strain / 28-day avg strain.
-    /// ACR > 1.3 indicates spike in training load → overtraining risk.
-    /// ACR < 0.8 indicates undertraining.
+    /// ACR > 1.3 indicates that recent recorded load is higher than the longer-term average.
+    /// ACR < 0.8 indicates that recent recorded load is below the longer-term average.
     static func acrRatio(history: [DailyMetrics]) -> Double? {
         let sorted = history.sorted { $0.date < $1.date }
         let last7  = sorted.suffix(7).map  { $0.strainScore }
@@ -173,22 +173,17 @@ struct TrainingGuidanceEngine {
 
         readiness = max(0, min(100, readiness))
 
-        // — Step 3: Activity Level + ACR Overtraining Cap —
-        var level = levelFor(readiness: readiness)
-        if let acr, acr > 1.3 {
-            level = capLevel(level, to: .light)
-        }
+        // — Step 3: Activity Level —
+        // ACR remains descriptive context; it does not automatically prescribe a
+        // training cap because a universal risk threshold is not well validated.
+        let level = levelFor(readiness: readiness)
 
         // — Step 4: Fatigue Detection —
         let fatigueFlags = detectFatigue(history: history)
 
-        // — Step 5: Strain Target (adjusted by VO2Max, capped by ACR) —
+        // — Step 5: Strain Target (adjusted by VO2Max) —
         var strainMin = Int((Double(level.baseTargetStrainMin) * multiplier).rounded())
         var strainMax = Int((Double(level.baseTargetStrainMax) * multiplier).rounded())
-        if let acr, acr > 1.3 {
-            strainMax = min(strainMax, 40)
-            strainMin = min(strainMin, strainMax)
-        }
         strainMin = max(0, min(100, strainMin))
         strainMax = max(strainMin, min(100, strainMax))
 
@@ -237,11 +232,6 @@ struct TrainingGuidanceEngine {
         }
     }
 
-    /// Returns the lower of the two levels (more conservative).
-    private static func capLevel(_ level: ActivityLevel, to cap: ActivityLevel) -> ActivityLevel {
-        level.rawValue <= cap.rawValue ? level : cap
-    }
-
     private static func buildExplanation(
         metrics: DailyMetrics,
         readiness: Double,
@@ -287,7 +277,7 @@ struct TrainingGuidanceEngine {
         }
 
         if let acr, acr > 1.3 {
-            parts.append("Training load is elevated (ACR \(String(format: "%.2f", acr))) — a lighter session protects against overtraining.")
+            parts.append("Recent recorded load is above your longer-term average (ratio \(String(format: "%.2f", acr))); consider a lighter session if fatigue or soreness is elevated.")
         } else if let acr, acr < 0.8 {
             parts.append("Training load has been low recently — your body is ready for more.")
         }

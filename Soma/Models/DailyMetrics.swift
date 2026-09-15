@@ -1,5 +1,15 @@
 import Foundation
 
+enum ScoreConfidence: String, Codable {
+    case low, medium, high
+
+    static func from(dataCoverage: Double) -> ScoreConfidence {
+        if dataCoverage >= 0.75 { return .high }
+        if dataCoverage >= 0.50 { return .medium }
+        return .low
+    }
+}
+
 /// Per-workout HR zone breakdown, stored as part of DailyMetrics.
 /// Used to render a stacked zone bar chart in the Strain detail view.
 struct WorkoutZoneBreakdown: Codable, Identifiable {
@@ -20,6 +30,8 @@ struct WorkoutZoneBreakdown: Codable, Identifiable {
 }
 
 struct DailyMetrics: Identifiable, Codable {
+    static let currentScoreAlgorithmVersion = 2
+
     let id: UUID
     let date: Date
 
@@ -28,6 +40,18 @@ struct DailyMetrics: Identifiable, Codable {
     var strainScore: Double        // 0–100
     var sleepScore: Double         // 0–100
     var stressScore: Double        // 0–100
+
+    // Fraction of each score's weighted inputs that were actually available.
+    // Optional for backward compatibility with snapshots written before this metadata existed.
+    var recoveryDataCoverage: Double?
+    var strainDataCoverage: Double?
+    var sleepDataCoverage: Double?
+    var stressDataCoverage: Double?
+    var scoreAlgorithmVersion: Int?
+    var recoveryConfidence: ScoreConfidence?
+    var strainConfidence: ScoreConfidence?
+    var sleepConfidence: ScoreConfidence?
+    var stressConfidence: ScoreConfidence?
 
     // Raw strain load (weighted zone-minutes, used for capacity model)
     var strainLoad: Double?
@@ -118,6 +142,15 @@ struct DailyMetrics: Identifiable, Codable {
         strainScore: Double = 0,
         sleepScore: Double = 0,
         stressScore: Double = 0,
+        recoveryDataCoverage: Double? = nil,
+        strainDataCoverage: Double? = nil,
+        sleepDataCoverage: Double? = nil,
+        stressDataCoverage: Double? = nil,
+        scoreAlgorithmVersion: Int? = nil,
+        recoveryConfidence: ScoreConfidence? = nil,
+        strainConfidence: ScoreConfidence? = nil,
+        sleepConfidence: ScoreConfidence? = nil,
+        stressConfidence: ScoreConfidence? = nil,
         hrvAverage: Double? = nil,
         restingHR: Double? = nil,
         sleepDurationHours: Double? = nil,
@@ -163,6 +196,15 @@ struct DailyMetrics: Identifiable, Codable {
         self.strainScore = strainScore
         self.sleepScore = sleepScore
         self.stressScore = stressScore
+        self.recoveryDataCoverage = recoveryDataCoverage
+        self.strainDataCoverage = strainDataCoverage
+        self.sleepDataCoverage = sleepDataCoverage
+        self.stressDataCoverage = stressDataCoverage
+        self.scoreAlgorithmVersion = scoreAlgorithmVersion
+        self.recoveryConfidence = recoveryConfidence
+        self.strainConfidence = strainConfidence
+        self.sleepConfidence = sleepConfidence
+        self.stressConfidence = stressConfidence
         self.hrvAverage = hrvAverage
         self.restingHR = restingHR
         self.sleepDurationHours = sleepDurationHours

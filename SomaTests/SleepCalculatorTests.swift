@@ -4,7 +4,7 @@ import XCTest
 final class SleepCalculatorTests: XCTestCase {
 
     // MARK: - Sleep Score
-    // Formula: 0.30×duration + 0.30×stage + 0.15×sleepingHRV + 0.15×sleepingHR + 0.10×interruptions
+    // Formula: 0.40×duration + 0.20×efficiency + 0.10×stage + 0.10×sleepingHRV + 0.10×sleepingHR + 0.10×interruptions
     // Stage mix:  0.40×deep + 0.40×rem + 0.20×core
     // Optimal targets: deep=20%, rem=22%, core=50% of total sleep
 
@@ -17,7 +17,7 @@ final class SleepCalculatorTests: XCTestCase {
             remSleepDuration:  total * 0.22,
             coreSleepDuration: total * 0.50,
             awakeDuration: 0,
-            inBedDuration: 0,
+            inBedDuration: total,
             sleepStartTime: nil,
             sleepEndTime: nil,
             interruptionCount: 0
@@ -46,15 +46,37 @@ final class SleepCalculatorTests: XCTestCase {
             sleepEndTime: nil,
             interruptionCount: 0
         )
-        // durationScore=100, stageScore=100, hrvScore=50, hrScore=50, interruptionScore=100
-        // 0.30*100 + 0.30*100 + 0.15*50 + 0.15*50 + 0.10*100 = 30+30+7.5+7.5+10 = 85
+        // Missing in-bed and HRV/HR values use neutral 50s.
+        // 0.40*100 + 0.20*50 + 0.10*100 + 0.10*50 + 0.10*50 + 0.10*100 = 80
         let score = SleepCalculator.calculateScore(sleep: sleep, sleepNeed: 8)
-        XCTAssertEqual(score, 85, accuracy: 0.01)
+        XCTAssertEqual(score, 80, accuracy: 0.01)
     }
 
     func test_calculateScore_noSleep_returns0() {
         let score = SleepCalculator.calculateScore(sleep: .empty, sleepNeed: 8)
         XCTAssertEqual(score, 0)
+    }
+
+    func test_calculateScore_lowEfficiency_reducesScore() {
+        let total = 6.0 * 3600
+        let efficient = SleepData(
+            totalDuration: total,
+            deepSleepDuration: total * 0.20,
+            remSleepDuration: total * 0.20,
+            coreSleepDuration: total * 0.50,
+            awakeDuration: 0,
+            inBedDuration: total,
+            sleepStartTime: nil,
+            sleepEndTime: nil,
+            interruptionCount: 0
+        )
+        var inefficient = efficient
+        inefficient.inBedDuration = 9.0 * 3600
+
+        let efficientScore = SleepCalculator.calculateScore(sleep: efficient, sleepNeed: 8)
+        let inefficientScore = SleepCalculator.calculateScore(sleep: inefficient, sleepNeed: 8)
+
+        XCTAssertGreaterThan(efficientScore, inefficientScore)
     }
 
     func test_calculateScore_exampleFromSpec() {
@@ -76,9 +98,10 @@ final class SleepCalculatorTests: XCTestCase {
         // coreScore  = min(100, (4.4/7.5)/0.50*100) = 100
         // stageScore = 0.40*93.33 + 0.40*100 + 0.20*100 = 97.33
         // hrvScore = 50, hrScore = 50, interruptionScore = 100
-        // final = 0.30*93.75 + 0.30*97.33 + 0.15*50 + 0.15*50 + 0.10*100 ≈ 82.3
+        // efficiency defaults to neutral because in-bed duration is unavailable.
+        // final = 0.40*93.75 + 0.20*50 + 0.10*97.33 + 0.10*50 + 0.10*50 + 0.10*100 ≈ 77.2
         let score = SleepCalculator.calculateScore(sleep: sleep, sleepNeed: 8)
-        XCTAssertEqual(score, 82.3, accuracy: 0.5)
+        XCTAssertEqual(score, 77.2, accuracy: 0.5)
     }
 
     func test_calculateScore_halfDuration_optimalStages() {
@@ -95,10 +118,9 @@ final class SleepCalculatorTests: XCTestCase {
             sleepEndTime: nil,
             interruptionCount: 0
         )
-        // durationScore=50, stageScore=100, hrv=50, hr=50, interruption=100
-        // 0.30*50 + 0.30*100 + 0.15*50 + 0.15*50 + 0.10*100 = 15+30+7.5+7.5+10 = 70
+        // durationScore=50, efficiency=50, stageScore=100, hrv=50, hr=50, interruption=100
         let score = SleepCalculator.calculateScore(sleep: sleep, sleepNeed: 8)
-        XCTAssertEqual(score, 70, accuracy: 0.01)
+        XCTAssertEqual(score, 60, accuracy: 0.01)
     }
 
     func test_calculateScore_noDeepOrREM_allCore() {
@@ -116,10 +138,9 @@ final class SleepCalculatorTests: XCTestCase {
             interruptionCount: 0
         )
         // durationScore=100, deep=0, rem=0, coreScore=100 → stageScore=0.20*100=20
-        // hrv=50, hr=50, interruption=100
-        // 0.30*100 + 0.30*20 + 0.15*50 + 0.15*50 + 0.10*100 = 30+6+7.5+7.5+10 = 61
+        // efficiency=50, hrv=50, hr=50, interruption=100
         let score = SleepCalculator.calculateScore(sleep: sleep, sleepNeed: 8)
-        XCTAssertEqual(score, 61, accuracy: 0.01)
+        XCTAssertEqual(score, 72, accuracy: 0.01)
     }
 
     func test_calculateScore_belowOptimalAllStages() {
@@ -138,10 +159,9 @@ final class SleepCalculatorTests: XCTestCase {
         )
         // durationScore = 75
         // stageScore = 0.40*50 + 0.40*45.45 + 0.20*60 = 20+18.18+12 = 50.18
-        // hrv=50, hr=50, interruption=100
-        // 0.30*75 + 0.30*50.18 + 0.15*50 + 0.15*50 + 0.10*100 = 22.5+15.05+7.5+7.5+10 ≈ 62.6
+        // efficiency=50, hrv=50, hr=50, interruption=100
         let score = SleepCalculator.calculateScore(sleep: sleep, sleepNeed: 8)
-        XCTAssertEqual(score, 62.6, accuracy: 0.5)
+        XCTAssertEqual(score, 65.0, accuracy: 0.5)
     }
 
     // MARK: - Age-adjusted deep-sleep target

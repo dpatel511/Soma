@@ -190,7 +190,7 @@ struct DashboardView: View {
                     .font(.title2)
                     .foregroundColor(Color.somaBlue)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Soma Age")
+                    Text("Experimental Health Age")
                         .font(.subheadline).fontWeight(.semibold)
                         .foregroundColor(.primary)
                     if let result = viewModel.somaAge {
@@ -367,7 +367,8 @@ struct DashboardView: View {
                 maxScore: 100,
                 state: metric.state(from: viewModel.todayMetrics),
                 sparklineValues: viewModel.sparklineData[metric.rawValue] ?? [],
-                weekDelta: weekDelta(for: metric)
+                weekDelta: weekDelta(for: metric),
+                dataCoverage: metric.dataCoverage(from: viewModel.todayMetrics)
             )
         }
         .buttonStyle(.plain)
@@ -399,28 +400,19 @@ struct DashboardView: View {
 
     private var illnessArcBanner: some View {
         let daysText = viewModel.illnessArcDays == 1 ? "1 night" : "\(viewModel.illnessArcDays) nights"
-        let recoveryEstimate: String = {
-            let remaining = max(0, 5 - viewModel.illnessArcDays)
-            if remaining <= 1 { return "You may be in the clear soon — watch for a return to baseline temperature." }
-            return "Typical recovery takes 3–5 days. Estimated \(remaining)+ days remaining."
-        }()
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: "thermometer.medium")
                     .foregroundColor(Color.somaOrange)
                     .font(.subheadline)
-                Text("Illness Arc Detected — \(daysText)")
+                Text("Elevated Temperature Trend — \(daysText)")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(Color.somaOrange)
             }
-            Text("Elevated wrist temperature detected. All strain targets are disabled. Focus on rest, hydration, and sleep.")
+            Text("Wrist temperature is above baseline. This can have many causes and is not a diagnosis. Strain targets are paused while you monitor the trend and how you feel.")
                 .font(.caption)
                 .foregroundColor(Color.somaOrange.opacity(0.85))
-                .fixedSize(horizontal: false, vertical: true)
-            Text(recoveryEstimate)
-                .font(.caption)
-                .foregroundColor(Color.somaOrange.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)

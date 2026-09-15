@@ -103,7 +103,7 @@ struct CoachView: View {
         Button { Haptics.tap(); showSomaAge = true } label: {
             VStack(alignment: .leading, spacing: Space.md) {
                 HStack {
-                    Text("SOMA AGE").eyebrow()
+                    Text("EXPERIMENTAL HEALTH AGE").eyebrow()
                     Spacer()
                     Image(systemName: "chevron.right").font(.caption2.weight(.bold)).foregroundStyle(Color.somaTextTertiary)
                 }
@@ -151,7 +151,7 @@ struct CoachView: View {
                         }
                     }
                     CalibratingTag(daysLeft: c.daysRemaining)
-                    Text("Building your biological age — keep wearing your watch for \(c.daysRemaining) more day\(c.daysRemaining == 1 ? "" : "s") to unlock it.")
+                    Text("Building an experimental health estimate — keep wearing your watch for \(c.daysRemaining) more day\(c.daysRemaining == 1 ? "" : "s") to unlock it.")
                         .font(.footnote).foregroundStyle(Color.somaTextSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -167,8 +167,8 @@ struct CoachView: View {
     private var correlationsSection: some View {
         let insights = insightsVM.behaviorInsights.sorted { abs($0.delta) > abs($1.delta) }
         return VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader(title: "Behavioral Correlations",
-                          subtitle: insights.isEmpty ? nil : "From your logged check-ins")
+            SectionHeader(title: "Observed Associations",
+                          subtitle: insights.isEmpty ? nil : "Exploratory patterns from your logged check-ins")
             if insights.isEmpty {
                 Text("Log daily check-ins for ~2 weeks to reveal which habits move your recovery, sleep, and HRV.")
                     .font(.footnote).foregroundStyle(Color.somaTextSecondary)
