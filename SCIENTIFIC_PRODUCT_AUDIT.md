@@ -194,8 +194,8 @@ Implemented in score algorithm version 2:
 
 ### P2 — WHOOP-like product loop
 
-1. Simplify Today around state, explanation, and next action.
-2. Add baseline-relative signal cards and data-quality indicators.
+1. **Implemented locally; CI pending:** Today now prioritizes state, explanation, and the daily plan before supporting scores.
+2. **Implemented locally; CI pending:** HRV, resting HR, sleep duration, and wrist temperature are shown relative to personal data; comparisons calibrate until seven prior observations exist.
 3. Upgrade behavior insights with effect uncertainty and confounder-aware wording.
 4. Add workout/live strain coverage where HealthKit permits it.
 

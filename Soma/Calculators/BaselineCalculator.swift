@@ -27,6 +27,13 @@ struct BaselineCalculator {
         return values.reduce(0, +) / Double(values.count)
     }
 
+    /// Mean used for user-facing personal comparisons. Unlike low-level score
+    /// fallbacks, this stays unavailable until a full week of observations exists.
+    static func computePersonalBaseline(from values: [Double]) -> Double? {
+        guard values.count >= minDaysRequired else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
     /// Derives (Date, Double) history from stored DailyMetrics using the given key path.
     static func extractHistory(
         from metrics: [DailyMetrics],

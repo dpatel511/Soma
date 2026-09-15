@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - TODAY TAB
 // "How am I today, and what should I do?" — the daily operating system.
-// Hero readiness → Why → Today's Plan → Key Signals → Alert Center.
+// Hero readiness → Why → Today's Plan → Key Signals → Supporting Scores → Alert Center.
 
 struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
@@ -38,12 +38,13 @@ struct TodayView: View {
                 ScrollView {
                     VStack(spacing: Space.lg) {
                         heroCard
-                        keySignalsSection
-                        sleepBalanceCard
                         contributorsSection
                         if let guidance = viewModel.trainingGuidance {
                             planSection(guidance)
                         }
+                        baselineSignalsSection
+                        scoresSection
+                        sleepBalanceCard
                         alertCenterSection
                         Color.clear.frame(height: 12)
                     }
@@ -440,12 +441,131 @@ struct TodayView: View {
         .accentCard(accent, cornerRadius: Radius.lg)
     }
 
-    // MARK: 4 — Key Signals
+    // MARK: 4 — Baseline-relative signals
 
-    private var keySignalsSection: some View {
+    private struct BaselineSignal: Identifiable {
+        let id: String
+        let icon: String
+        let title: String
+        let value: String
+        let unit: String
+        let comparison: String?
+        let color: Color
+        let trend: SignalTrend
+    }
+
+    @ViewBuilder
+    private var baselineSignalsSection: some View {
+        let cols = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+        let signals = baselineSignals
+        if !signals.isEmpty {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                SectionHeader(title: "Key Signals", subtitle: "Compared with your recent personal data")
+                LazyVGrid(columns: cols, spacing: 12) {
+                    ForEach(signals) { signal in
+                        SignalTile(
+                            icon: signal.icon,
+                            title: signal.title,
+                            value: signal.value,
+                            unit: signal.unit,
+                            baseline: signal.comparison == nil ? "Calibrating" : nil,
+                            deviationText: signal.comparison,
+                            color: signal.color,
+                            trend: signal.trend
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var baselineSignals: [BaselineSignal] {
+        let prior = viewModel.loadHistory(days: 30).filter {
+            !Calendar.current.isDate($0.date, inSameDayAs: metrics.date)
+        }
+        var signals: [BaselineSignal] = []
+
+        if let hrv = metrics.hrvAverage {
+            let baseline = BaselineCalculator.computePersonalBaseline(
+                from: prior.compactMap(\.hrvAverage).filter { $0 > 0 }
+            )
+            let delta = baseline.map { hrv - $0 }
+            signals.append(BaselineSignal(
+                id: "hrv", icon: "waveform.path.ecg", title: "HRV",
+                value: String(format: "%.0f", hrv), unit: "ms",
+                comparison: delta.map { signed($0, decimals: 0, unit: "ms") },
+                color: .somaPurple, trend: trend(for: delta, threshold: 1)
+            ))
+        }
+
+        if let rhr = metrics.restingHR {
+            let baseline = BaselineCalculator.computePersonalBaseline(
+                from: prior.compactMap(\.restingHR).filter { $0 > 0 }
+            )
+            let delta = baseline.map { rhr - $0 }
+            signals.append(BaselineSignal(
+                id: "rhr", icon: "heart.fill", title: "Resting HR",
+                value: String(format: "%.0f", rhr), unit: "bpm",
+                comparison: delta.map { signed($0, decimals: 0, unit: "bpm") },
+                color: .somaOrange, trend: trend(for: delta, threshold: 1)
+            ))
+        }
+
+        if let sleep = metrics.sleepDurationHours, sleep > 0 {
+            let baseline = BaselineCalculator.computePersonalBaseline(
+                from: prior.compactMap(\.sleepDurationHours).filter { $0 > 0 }
+            )
+            let delta = baseline.map { sleep - $0 }
+            signals.append(BaselineSignal(
+                id: "sleep-duration", icon: "moon.zzz.fill", title: "Sleep Duration",
+                value: formatHours(sleep), unit: "",
+                comparison: delta.map { sleepComparison($0) },
+                color: .somaBlue, trend: trend(for: delta, threshold: 0.1)
+            ))
+        }
+
+        if let temperature = metrics.wristTempDeviation {
+            signals.append(BaselineSignal(
+                id: "wrist-temperature", icon: "thermometer.medium", title: "Wrist Temp",
+                value: String(format: "%+.1f", temperature), unit: "°C",
+                comparison: "vs personal baseline",
+                color: abs(temperature) > 0.5 ? .somaYellow : .somaGreen,
+                trend: trend(for: temperature, threshold: 0.1)
+            ))
+        }
+
+        return signals
+    }
+
+    private func signed(_ value: Double, decimals: Int, unit: String) -> String {
+        let formatted = String(format: "%+.*f", decimals, value)
+        return "\(formatted) \(unit) vs personal avg"
+    }
+
+    private func sleepComparison(_ delta: Double) -> String {
+        let minutes = Int((delta * 60).rounded())
+        return "\(minutes >= 0 ? "+" : "")\(minutes) min vs personal avg"
+    }
+
+    private func trend(for delta: Double?, threshold: Double) -> SignalTrend {
+        guard let delta else { return .flat }
+        if delta > threshold { return .up }
+        if delta < -threshold { return .down }
+        return .flat
+    }
+
+    private func trend(for value: Double, threshold: Double) -> SignalTrend {
+        if value > threshold { return .up }
+        if value < -threshold { return .down }
+        return .flat
+    }
+
+    // MARK: 5 — Supporting scores
+
+    private var scoresSection: some View {
         let cols = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         return VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader(title: "Today's Scores")
+            SectionHeader(title: "Supporting Scores")
             LazyVGrid(columns: cols, spacing: 12) {
                 coreTile(.recovery)
                 coreTile(.sleep)
@@ -483,7 +603,7 @@ struct TodayView: View {
         return .flat
     }
 
-    // MARK: 5 — Alert Center
+    // MARK: 6 — Alert Center
 
     private var alertCenterSection: some View {
         let alerts = activeAlerts()

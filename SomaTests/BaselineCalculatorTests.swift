@@ -45,6 +45,15 @@ final class BaselineCalculatorTests: XCTestCase {
         XCTAssertFalse(BaselineCalculator.hasEnoughData(history))
     }
 
+    func test_computePersonalBaseline_returnsNilBelowSevenObservations() {
+        XCTAssertNil(BaselineCalculator.computePersonalBaseline(from: [50, 51, 52, 53, 54, 55]))
+    }
+
+    func test_computePersonalBaseline_returnsMeanAtSevenObservations() {
+        let baseline = BaselineCalculator.computePersonalBaseline(from: [50, 52, 54, 56, 58, 60, 62])
+        XCTAssertEqual(baseline!, 56, accuracy: 0.01)
+    }
+
     // MARK: - Normalize Ratio
 
     func test_normalizeRatio_midRange() {
