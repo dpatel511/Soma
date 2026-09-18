@@ -109,6 +109,19 @@ final class WorkoutStrainTests: XCTestCase {
         XCTAssertEqual(result.details.count, 1, "Keep the logged workout visible while HR data is missing")
     }
 
+    func test_singleSample_returnsZeroWithoutInvalidRange() {
+        let base = Date(timeIntervalSince1970: 0)
+        let result = StrainCalculator.calculateWorkoutAware(
+            workoutIntervals: [makeInterval(startOffset: 0, duration: 3600)],
+            allSamples: [(base, 150)],
+            maxHR: maxHR
+        )
+
+        XCTAssertEqual(result.total, 0)
+        XCTAssertEqual(result.workoutHeartRateCoverage ?? -1, 0)
+        XCTAssertEqual(result.details.count, 1)
+    }
+
     // MARK: - calculateWorkoutAware: multiple workouts produce multiple details
 
     func test_multipleWorkouts_multipleDetails() {

@@ -179,7 +179,7 @@ struct StrainCalculator {
         var detailZones = [Int: [HeartRateZone: Double]]()    // workoutIntervals index → zone minutes
         var detailCoveredMinutes = [Int: Double]()
 
-        for i in 1..<allSamples.count {
+        for i in allSamples.indices.dropFirst() {
             let (prevTime, prevHR) = allSamples[i - 1]
             let (currTime, currHR) = allSamples[i]
             let rawMinutes = currTime.timeIntervalSince(prevTime) / 60.0
