@@ -220,6 +220,13 @@ struct DayDetailView: View {
                     infoRow(label: "Workout Strain", value: viewModel.workoutStrainText)
                     infoRow(label: "Incidental Strain", value: viewModel.incidentalStrainText)
                 }
+                if let coverage = viewModel.workoutHeartRateCoverageText {
+                    infoRow(label: "Heart-rate coverage", value: coverage)
+                    Text("Apple Health snapshot, not a live measurement. Values can change after your Watch finishes syncing, and HR-only strain can underrepresent strength work.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let steps = viewModel.stepsFormatted {
                     infoRow(label: "Steps", value: steps)
                 }
@@ -408,6 +415,15 @@ struct WorkoutDetailCard: View {
         workout.durationMinutes > 0 ? workout.durationMinutes : workout.totalZoneMinutes
     }
 
+    private var coverageText: String? {
+        workout.heartRateCoverage.map {
+            let percent = Int(($0 * 100).rounded())
+            return percent >= 75
+                ? "Heart-rate coverage: \(percent)%"
+                : "Partial heart-rate data: \(percent)%"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             // Header
@@ -441,6 +457,12 @@ struct WorkoutDetailCard: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
+            }
+
+            if let coverageText {
+                Text(coverageText)
+                    .font(.caption)
+                    .foregroundColor((workout.heartRateCoverage ?? 0) >= 0.75 ? .secondary : Color.somaYellow)
             }
 
             // Quick stats
@@ -494,6 +516,11 @@ struct WorkoutDetailCard: View {
                         }
                     }
                 }
+            } else if workout.heartRateCoverage != nil {
+                Text("No supported heart-rate intervals yet. Keep your Watch and iPhone connected, then refresh after Health sync completes.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(16)

@@ -396,7 +396,8 @@ final class DashboardViewModel: ObservableObject {
             (sleepingHR != nil && sleepingHRBaseline != nil ? 0.10 : 0) +
             (sleepData.totalDuration > 0 ? 0.10 : 0)
 
-        let strainDataCoverage = hrData.count > 1 ? 1.0 : 0.0
+        let strainDataCoverage = strainResult.workoutHeartRateCoverage
+            ?? (hrData.count > 1 ? 1.0 : 0.0)
         let stressDataCoverage =
             (todayHRV != nil && hrvBaseline != nil ? 0.60 : 0) +
             (!daytimeSamples.isEmpty && rhrBaseline != nil ? 0.40 : 0)
@@ -436,14 +437,17 @@ final class DashboardViewModel: ObservableObject {
         // Index-match against fetchedWorkouts (same order as workoutIntervals) to get
         // start time, actual duration, and calorie burn from the HKWorkout object.
         let workoutZoneDetails: [WorkoutZoneBreakdown]? = strainResult.details.isEmpty ? nil :
-            strainResult.details.enumerated().map { idx, d in
-                let hkWorkout = fetchedWorkouts.indices.contains(idx) ? fetchedWorkouts[idx] : nil
+            strainResult.details.map { d in
+                let hkWorkout = fetchedWorkouts.indices.contains(d.intervalIndex)
+                    ? fetchedWorkouts[d.intervalIndex]
+                    : nil
                 return WorkoutZoneBreakdown(
                     activityName: d.activityName,
                     totalStrain: d.strain,
                     startTime: hkWorkout?.startDate,
                     durationMinutes: hkWorkout.map { $0.duration / 60.0 } ?? (d.zoneMinutes.values.reduce(0, +)),
                     calories: hkWorkout?.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                    heartRateCoverage: d.heartRateCoverage,
                     z1Minutes: d.zoneMinutes[.zone1] ?? 0,
                     z2Minutes: d.zoneMinutes[.zone2] ?? 0,
                     z3Minutes: d.zoneMinutes[.zone3] ?? 0,
@@ -495,6 +499,7 @@ final class DashboardViewModel: ObservableObject {
             workoutStrain: strainResult.workoutStrain,
             incidentalStrain: strainResult.incidentalStrain,
             workoutMinutes: workoutMinutes,
+            workoutHeartRateCoverage: strainResult.workoutHeartRateCoverage,
             sleepStartTime: sleepData.sleepStartTime,
             sleepEndTime: sleepData.sleepEndTime,
             ayurvedicSleepPoints: ayurvedicPoints,

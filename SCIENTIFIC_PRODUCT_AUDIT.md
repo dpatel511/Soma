@@ -196,8 +196,8 @@ Implemented in score algorithm version 2:
 
 1. **Implemented and CI-verified:** Today now prioritizes state, explanation, and the daily plan before supporting scores.
 2. **Implemented and CI-verified:** HRV, resting HR, sleep duration, and wrist temperature are shown relative to personal data; comparisons calibrate until seven prior observations exist.
-3. **Implemented locally; CI pending:** Behavior insights now show both group sizes, an approximate 95% interval, exploratory labeling, and confounder-aware association wording. Multiple-testing control remains future work.
-4. Add workout/live strain coverage where HealthKit permits it.
+3. **Implemented and CI-verified:** Behavior insights now show both group sizes, an approximate 95% interval, exploratory labeling, and confounder-aware association wording. Multiple-testing control remains future work.
+4. **Implemented locally; CI pending:** Workout summaries now report heart-rate sample coverage, retain logged workouts when HR data is missing, and explicitly describe strain as an Apple Health snapshot rather than a live measurement. HR-only muscular-load limitations remain visible.
 
 ### P3 — open-source readiness
 

@@ -266,7 +266,7 @@ Insights are sorted by effect magnitude. Both harmful behaviors (alcohol, late c
 
 ## How to Open in Xcode
 
-1. Open `Soma.xcodeproj` in **Xcode 15+**.
+1. Open `Soma.xcodeproj` in **Xcode 26.2+**.
 2. Select your development team under **Signing & Capabilities → Team**.
 
 ## How to Enable HealthKit
@@ -287,6 +287,14 @@ Insights are sorted by effect magnitude. Both harmful behaviors (alcohol, late c
 2. Select the device in the Xcode toolbar.
 3. Press **Cmd+R** to build and run.
 4. Trust the developer certificate: **Settings → General → VPN & Device Management**.
+
+### First device-test checklist
+
+1. Confirm Soma appears under **Settings → Health → Data Access & Devices** with the requested read permissions enabled.
+2. Record a 20–30 minute Apple Watch workout with heart rate, then wait for it to appear in Apple Health.
+3. Open Soma and refresh. Confirm the workout duration, calories, HR zones, and heart-rate coverage match the Health app closely.
+4. If coverage is partial, keep the Watch and iPhone connected and refresh again after Health sync completes; strain is not a live measurement.
+5. Verify sleep, HRV, resting heart rate, notifications, background refresh, and the widget over several days before relying on daily summaries.
 
 ## How to Grant Health Permissions
 

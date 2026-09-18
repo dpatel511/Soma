@@ -12,8 +12,10 @@ extension StrainCalculator {
 
     struct WorkoutStrainDetail: Identifiable {
         let id = UUID()
+        let intervalIndex: Int
         let activityName: String
         let strain: Double  // raw StrainLoad for this workout
+        let heartRateCoverage: Double
         /// Zone minutes within this workout window. Key = zone, value = minutes.
         let zoneMinutes: [HeartRateZone: Double]
     }
@@ -22,6 +24,7 @@ extension StrainCalculator {
         let total: Double            // total StrainLoad for the day
         let workoutStrain: Double    // StrainLoad from workout windows
         let incidentalStrain: Double // StrainLoad from non-workout windows
+        let workoutHeartRateCoverage: Double?
         let details: [WorkoutStrainDetail]
     }
 }
@@ -158,13 +161,15 @@ struct StrainCalculator {
         allSamples: [(Date, Double)],
         maxHR: Double
     ) -> WorkoutStrainResult {
-        guard !allSamples.isEmpty else {
-            return WorkoutStrainResult(total: 0, workoutStrain: 0, incidentalStrain: 0, details: [])
-        }
-
         guard !workoutIntervals.isEmpty else {
             let total = calculate(samples: allSamples, maxHR: maxHR)
-            return WorkoutStrainResult(total: total, workoutStrain: 0, incidentalStrain: total, details: [])
+            return WorkoutStrainResult(
+                total: total,
+                workoutStrain: 0,
+                incidentalStrain: total,
+                workoutHeartRateCoverage: nil,
+                details: []
+            )
         }
 
         var totalLoad = 0.0
@@ -172,6 +177,7 @@ struct StrainCalculator {
         var iLoad     = 0.0
         var detailLoads = [Int: Double]()                     // workoutIntervals index → load
         var detailZones = [Int: [HeartRateZone: Double]]()    // workoutIntervals index → zone minutes
+        var detailCoveredMinutes = [Int: Double]()
 
         for i in 1..<allSamples.count {
             let (prevTime, prevHR) = allSamples[i - 1]
@@ -180,39 +186,63 @@ struct StrainCalculator {
             guard rawMinutes > 0 else { continue }
 
             let minutes = min(rawMinutes, 1.0)
+            let midpoint = prevTime.addingTimeInterval(currTime.timeIntervalSince(prevTime) / 2)
+            let workoutIndices = workoutIntervals.indices.filter {
+                midpoint >= workoutIntervals[$0].start && midpoint <= workoutIntervals[$0].end
+            }
+            for index in workoutIndices {
+                detailCoveredMinutes[index, default: 0] += minutes
+            }
+            // Overlapping workout records each receive coverage, but load is assigned
+            // once to the first matching interval so daily strain cannot double count.
+            let workoutIndex = workoutIndices.first
+
             let avgHR   = (prevHR + currHR) / 2.0
             guard avgHR >= 0.5 * maxHR else { continue }
 
             let zone          = HeartRateZone.zone(for: avgHR, maxHR: maxHR)
+            if let idx = workoutIndex {
+                detailZones[idx, default: [:]][zone, default: 0] += minutes
+            }
             let intervalLoad  = minutes * zone.weight
             guard intervalLoad > 0 else { continue }
 
             totalLoad += intervalLoad
 
             // Tag this pair by its midpoint's membership in a workout window.
-            let midpoint = prevTime.addingTimeInterval(currTime.timeIntervalSince(prevTime) / 2)
-            if let idx = workoutIntervals.firstIndex(where: { midpoint >= $0.start && midpoint <= $0.end }) {
+            if let idx = workoutIndex {
                 wLoad += intervalLoad
                 detailLoads[idx, default: 0] += intervalLoad
-                detailZones[idx, default: [:]][zone, default: 0] += minutes
             } else {
                 iLoad += intervalLoad
             }
         }
 
-        let details: [WorkoutStrainDetail] = workoutIntervals.enumerated().compactMap { idx, interval in
-            let load = detailLoads[idx] ?? 0
-            guard load > 0.5 else { return nil }
+        let details: [WorkoutStrainDetail] = workoutIntervals.enumerated().map { idx, interval in
+            let durationMinutes = max(0, interval.end.timeIntervalSince(interval.start) / 60.0)
+            let coveredMinutes = detailCoveredMinutes[idx] ?? 0
+            let coverage = durationMinutes > 0 ? min(coveredMinutes / durationMinutes, 1) : 0
             return WorkoutStrainDetail(
+                intervalIndex: idx,
                 activityName: interval.activityName,
-                strain: load,
+                strain: detailLoads[idx] ?? 0,
+                heartRateCoverage: coverage,
                 zoneMinutes: detailZones[idx] ?? [:]
             )
         }
 
+        let totalWorkoutMinutes = workoutIntervals.reduce(0.0) {
+            $0 + max(0, $1.end.timeIntervalSince($1.start) / 60.0)
+        }
+        let coveredWorkoutMinutes = detailCoveredMinutes.values.reduce(0, +)
+        let workoutCoverage = totalWorkoutMinutes > 0
+            ? min(coveredWorkoutMinutes / totalWorkoutMinutes, 1)
+            : 0
+
         return WorkoutStrainResult(total: totalLoad,
                                    workoutStrain: wLoad,
                                    incidentalStrain: iLoad,
+                                   workoutHeartRateCoverage: workoutCoverage,
                                    details: details)
     }
 }

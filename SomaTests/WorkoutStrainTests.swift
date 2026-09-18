@@ -105,6 +105,8 @@ final class WorkoutStrainTests: XCTestCase {
         XCTAssertEqual(result.total, 0)
         XCTAssertEqual(result.workoutStrain, 0)
         XCTAssertEqual(result.incidentalStrain, 0)
+        XCTAssertEqual(result.workoutHeartRateCoverage ?? -1, 0)
+        XCTAssertEqual(result.details.count, 1, "Keep the logged workout visible while HR data is missing")
     }
 
     // MARK: - calculateWorkoutAware: multiple workouts produce multiple details
@@ -141,5 +143,87 @@ final class WorkoutStrainTests: XCTestCase {
         XCTAssertEqual(interval.start, start)
         XCTAssertEqual(interval.end,   end)
         XCTAssertEqual(interval.activityName, "HIIT")
+    }
+
+    func test_sparseWorkoutSamples_reportsPartialCoverage() {
+        let base = Date(timeIntervalSince1970: 0)
+        let interval = StrainCalculator.WorkoutInterval(
+            start: base,
+            end: base.addingTimeInterval(30 * 60),
+            activityName: "Running"
+        )
+        let samples = [
+            (base, 150.0),
+            (base.addingTimeInterval(30 * 60), 150.0),
+        ]
+
+        let result = StrainCalculator.calculateWorkoutAware(
+            workoutIntervals: [interval], allSamples: samples, maxHR: maxHR
+        )
+
+        XCTAssertEqual(result.workoutHeartRateCoverage ?? -1, 1.0 / 30.0, accuracy: 0.001)
+        XCTAssertEqual(result.details.first?.heartRateCoverage ?? -1, 1.0 / 30.0, accuracy: 0.001)
+    }
+
+    func test_minuteWorkoutSamples_reportsFullCoverage() {
+        let base = Date(timeIntervalSince1970: 0)
+        let interval = StrainCalculator.WorkoutInterval(
+            start: base,
+            end: base.addingTimeInterval(30 * 60),
+            activityName: "Running"
+        )
+        let samples = (0...30).map { minute in
+            (base.addingTimeInterval(Double(minute) * 60), 150.0)
+        }
+
+        let result = StrainCalculator.calculateWorkoutAware(
+            workoutIntervals: [interval], allSamples: samples, maxHR: maxHR
+        )
+
+        XCTAssertEqual(result.workoutHeartRateCoverage ?? -1, 1, accuracy: 0.001)
+    }
+
+    func test_zoneOneWorkout_isVisibleDespiteZeroLoad() {
+        let base = Date(timeIntervalSince1970: 0)
+        let interval = StrainCalculator.WorkoutInterval(
+            start: base,
+            end: base.addingTimeInterval(10 * 60),
+            activityName: "Recovery Walk"
+        )
+        let samples = (0...10).map { minute in
+            (base.addingTimeInterval(Double(minute) * 60), 105.0)
+        }
+
+        let result = StrainCalculator.calculateWorkoutAware(
+            workoutIntervals: [interval], allSamples: samples, maxHR: maxHR
+        )
+
+        XCTAssertEqual(result.details.count, 1)
+        XCTAssertEqual(result.details[0].strain, 0)
+        XCTAssertEqual(result.details[0].zoneMinutes[.zone1] ?? -1, 10, accuracy: 0.001)
+    }
+
+    func test_overlappingWorkouts_doNotDoubleCountLoad() {
+        let base = Date(timeIntervalSince1970: 0)
+        let samples = (0...10).map { minute in
+            (base.addingTimeInterval(Double(minute) * 60), 150.0)
+        }
+        let intervals = [
+            StrainCalculator.WorkoutInterval(
+                start: base, end: base.addingTimeInterval(10 * 60), activityName: "Running"
+            ),
+            StrainCalculator.WorkoutInterval(
+                start: base, end: base.addingTimeInterval(10 * 60), activityName: "Other"
+            ),
+        ]
+
+        let result = StrainCalculator.calculateWorkoutAware(
+            workoutIntervals: intervals, allSamples: samples, maxHR: maxHR
+        )
+
+        XCTAssertEqual(result.total, result.workoutStrain, accuracy: 0.001)
+        XCTAssertEqual(result.details.map(\.strain).reduce(0, +), result.workoutStrain, accuracy: 0.001)
+        XCTAssertEqual(result.details[0].heartRateCoverage, 1, accuracy: 0.001)
+        XCTAssertEqual(result.details[1].heartRateCoverage, 1, accuracy: 0.001)
     }
 }

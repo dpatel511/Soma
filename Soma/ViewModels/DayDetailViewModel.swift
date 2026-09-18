@@ -96,6 +96,12 @@ final class DayDetailViewModel: ObservableObject {
         return String(format: "%.1f", is_)
     }
 
+    var workoutHeartRateCoverageText: String? {
+        metrics.workoutHeartRateCoverage.map {
+            "\(Int(($0 * 100).rounded()))% of workout"
+        }
+    }
+
     var stepsFormatted: String? {
         guard let steps = metrics.stepCount else { return nil }
         return steps >= 1000

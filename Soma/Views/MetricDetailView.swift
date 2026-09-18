@@ -238,6 +238,16 @@ struct MetricInsightGenerator {
 
         if let wm = metrics.workoutMinutes, wm > 0 {
             obs.append("\(formatHours(wm / 60)) of workout time contributed to today's strain")
+            obs.append("Strain is derived from Apple Health heart-rate samples, not measured live; strength work may be underrepresented")
+        }
+        if let coverage = metrics.workoutHeartRateCoverage {
+            let percent = Int((coverage * 100).rounded())
+            if coverage < 0.75 {
+                obs.append("Workout heart-rate coverage is partial (\(percent)%); the strain estimate may change after Apple Health finishes syncing")
+                acts.append("Keep your Watch and iPhone connected, then refresh after the workout sync completes")
+            } else {
+                obs.append("Workout heart-rate coverage: \(percent)%")
+            }
         }
         return (obs, acts)
     }

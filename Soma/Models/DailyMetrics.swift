@@ -19,6 +19,7 @@ struct WorkoutZoneBreakdown: Codable, Identifiable {
     var startTime: Date? = nil
     var durationMinutes: Double = 0
     var calories: Double? = nil
+    var heartRateCoverage: Double? = nil
     var z1Minutes: Double = 0   // Zone 1 (Warm Up / ≤60% MaxHR)
     var z2Minutes: Double = 0   // Zone 2 (Fat Burn / 60–70%)
     var z3Minutes: Double = 0   // Zone 3 (Aerobic / 70–80%)
@@ -83,6 +84,7 @@ struct DailyMetrics: Identifiable, Codable {
     var workoutStrain: Double?     // strain attributed to HKWorkout sessions
     var incidentalStrain: Double?  // remaining strain from non-workout HR elevation
     var workoutMinutes: Double?    // total workout duration in minutes
+    var workoutHeartRateCoverage: Double? // fraction of workout time supported by nearby HR samples
 
     // Ayurvedic sleep timing
     var sleepStartTime: Date?
@@ -172,6 +174,7 @@ struct DailyMetrics: Identifiable, Codable {
         workoutStrain: Double? = nil,
         incidentalStrain: Double? = nil,
         workoutMinutes: Double? = nil,
+        workoutHeartRateCoverage: Double? = nil,
         sleepStartTime: Date? = nil,
         sleepEndTime: Date? = nil,
         ayurvedicSleepPoints: Double? = nil,
@@ -226,6 +229,7 @@ struct DailyMetrics: Identifiable, Codable {
         self.workoutStrain = workoutStrain
         self.incidentalStrain = incidentalStrain
         self.workoutMinutes = workoutMinutes
+        self.workoutHeartRateCoverage = workoutHeartRateCoverage
         self.sleepStartTime = sleepStartTime
         self.sleepEndTime = sleepEndTime
         self.ayurvedicSleepPoints = ayurvedicSleepPoints
