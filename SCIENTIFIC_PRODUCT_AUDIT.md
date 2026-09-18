@@ -194,9 +194,9 @@ Implemented in score algorithm version 2:
 
 ### P2 — WHOOP-like product loop
 
-1. **Implemented locally; CI pending:** Today now prioritizes state, explanation, and the daily plan before supporting scores.
-2. **Implemented locally; CI pending:** HRV, resting HR, sleep duration, and wrist temperature are shown relative to personal data; comparisons calibrate until seven prior observations exist.
-3. Upgrade behavior insights with effect uncertainty and confounder-aware wording.
+1. **Implemented and CI-verified:** Today now prioritizes state, explanation, and the daily plan before supporting scores.
+2. **Implemented and CI-verified:** HRV, resting HR, sleep duration, and wrist temperature are shown relative to personal data; comparisons calibrate until seven prior observations exist.
+3. **Implemented locally; CI pending:** Behavior insights now show both group sizes, an approximate 95% interval, exploratory labeling, and confounder-aware association wording. Multiple-testing control remains future work.
 4. Add workout/live strain coverage where HealthKit permits it.
 
 ### P3 — open-source readiness
@@ -221,4 +221,4 @@ Implemented in score algorithm version 2:
 
 ## Validation boundary
 
-This was a code, product, and literature audit. No claim here establishes clinical validity. XCTest and device behavior were not executed because the current host is Windows and does not provide Xcode, the iOS simulator, HealthKit, or WidgetKit runtime verification.
+This was a code, product, and literature audit. No claim here establishes clinical validity. XCTest runs in macOS CI; device behavior was not executed because the current host is Windows and does not provide Xcode, the iOS simulator, HealthKit, or WidgetKit runtime verification.

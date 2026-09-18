@@ -197,8 +197,12 @@ struct CoachView: View {
         return HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(i.behaviorName).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                Text("\(i.metricName) · \(i.occurrences) days observed")
+                Text("\(i.metricName) · \(i.evidenceDescription)")
                     .font(.caption).foregroundStyle(Color.somaTextTertiary)
+                if let uncertainty = i.uncertaintyDescription {
+                    Text(uncertainty)
+                        .font(.caption2).foregroundStyle(Color.somaTextTertiary)
+                }
             }
             Spacer()
             Text("\(i.delta > 0 ? "+" : "−")\(valStr) \(unit)")

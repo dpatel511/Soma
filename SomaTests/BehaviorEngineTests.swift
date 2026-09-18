@@ -173,6 +173,7 @@ final class BehaviorEngineTests: XCTestCase {
         XCTAssertTrue(desc.contains("lower"))
         XCTAssertTrue(desc.contains("Recovery Score"))
         XCTAssertTrue(desc.contains("30 points"))
+        XCTAssertTrue(desc.contains("association"))
     }
 
     func test_impactDescription_positiveHRV() {
@@ -190,6 +191,32 @@ final class BehaviorEngineTests: XCTestCase {
         XCTAssertTrue(desc.contains("higher"))
         XCTAssertTrue(desc.contains("HRV"))
         XCTAssertTrue(desc.contains("ms"))
+    }
+
+    func test_generateInsights_reportsComparisonSupportAndUncertainty() {
+        let cal = Calendar.current
+        var checkIns: [DailyCheckIn] = []
+        var metrics: [DailyMetrics] = []
+
+        for i in 0..<12 {
+            let checkDate = cal.date(byAdding: .day, value: -(i * 2 + 1), to: Date())!
+            let nextDate = cal.date(byAdding: .day, value: 1, to: checkDate)!
+            let hasAlcohol = i < 6
+            checkIns.append(makeCheckIn(date: checkDate, alcohol: hasAlcohol))
+            let recovery = hasAlcohol ? Double(40 + i) : Double(74 + i)
+            metrics.append(makeMetrics(date: nextDate, recovery: recovery, sleep: 70))
+        }
+
+        let insight = BehaviorEngine.generateInsights(checkIns: checkIns, metrics: metrics).first {
+            $0.behaviorName == "Alcohol" && $0.metricName == "Recovery Score"
+        }
+
+        XCTAssertEqual(insight?.occurrences, 6)
+        XCTAssertEqual(insight?.comparisonOccurrences, 6)
+        XCTAssertNotNil(insight?.confidenceIntervalLower)
+        XCTAssertNotNil(insight?.confidenceIntervalUpper)
+        XCTAssertTrue(insight?.evidenceDescription.contains("6 with / 6 without") == true)
+        XCTAssertTrue(insight?.uncertaintyDescription?.contains("Approx. 95% range") == true)
     }
 
     // MARK: - coachingTips

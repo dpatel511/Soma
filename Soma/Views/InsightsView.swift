@@ -164,7 +164,7 @@ struct InsightsView: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
                         Spacer()
-                        Text("\(insight.occurrences) observations")
+                        Text(insight.evidenceDescription)
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -173,6 +173,11 @@ struct InsightsView: View {
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                         .lineSpacing(2)
+                    if let uncertainty = insight.uncertaintyDescription {
+                        Text(uncertainty)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 Spacer(minLength: 0)
             }

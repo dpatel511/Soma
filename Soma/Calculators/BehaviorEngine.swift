@@ -9,6 +9,9 @@ struct BehaviorInsight: Identifiable, Codable {
     let averageWith: Double
     let averageWithout: Double
     let occurrences: Int
+    let comparisonOccurrences: Int?
+    let confidenceIntervalLower: Double?
+    let confidenceIntervalUpper: Double?
     let isNegativeImpact: Bool   // true = behavior harms this metric
 
     var delta: Double { averageWith - averageWithout }
@@ -25,7 +28,26 @@ struct BehaviorInsight: Identifiable, Codable {
         default:                           unit = "points"
         }
         let formatted = absVal >= 1 ? String(format: "%.0f", absVal) : String(format: "%.1f", absVal)
-        return "After \(behaviorName), your \(metricName) tends to be \(formatted) \(unit) \(direction)."
+        return "On logged days with \(behaviorName), your \(metricName) averaged \(formatted) \(unit) \(direction) than on logged days without it. This is an association; other factors may contribute."
+    }
+
+    var evidenceDescription: String {
+        let comparison = comparisonOccurrences ?? 0
+        return "Exploratory · \(occurrences) with / \(comparison) without"
+    }
+
+    var uncertaintyDescription: String? {
+        guard let lower = confidenceIntervalLower,
+              let upper = confidenceIntervalUpper else {
+            return nil
+        }
+
+        return "Approx. 95% range: \(formatSigned(lower)) to \(formatSigned(upper))"
+    }
+
+    private func formatSigned(_ value: Double) -> String {
+        let formatted = abs(value) >= 1 ? String(format: "%.0f", abs(value)) : String(format: "%.1f", abs(value))
+        return "\(value >= 0 ? "+" : "−")\(formatted)"
     }
 }
 
@@ -250,6 +272,11 @@ private extension BehaviorEngine {
         let avgWithout = valsWithout.reduce(0, +) / Double(valsWithout.count)
         let delta      = avgWith - avgWithout
         let isNegative = higherIsBetter ? delta < 0 : delta > 0
+        let standardError = sqrt(
+            sampleVariance(valsWith) / Double(valsWith.count)
+            + sampleVariance(valsWithout) / Double(valsWithout.count)
+        )
+        let margin = 1.96 * standardError
 
         return BehaviorInsight(
             id: UUID(),
@@ -258,7 +285,17 @@ private extension BehaviorEngine {
             averageWith: avgWith,
             averageWithout: avgWithout,
             occurrences: valsWith.count,
+            comparisonOccurrences: valsWithout.count,
+            confidenceIntervalLower: delta - margin,
+            confidenceIntervalUpper: delta + margin,
             isNegativeImpact: isNegative
         )
+    }
+
+    static func sampleVariance(_ values: [Double]) -> Double {
+        guard values.count > 1 else { return 0 }
+        let mean = values.reduce(0, +) / Double(values.count)
+        let squaredDifferences = values.reduce(0) { $0 + pow($1 - mean, 2) }
+        return squaredDifferences / Double(values.count - 1)
     }
 }
