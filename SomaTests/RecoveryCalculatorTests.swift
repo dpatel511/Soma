@@ -160,6 +160,26 @@ final class RecoveryCalculatorTests: XCTestCase {
         XCTAssertTrue(result.observations.contains { $0.contains("daytime HRV was not substituted") })
     }
 
+    func test_dailyMetrics_roundTripsOvernightHRVProvenance() throws {
+        let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+        let provenance = HealthDataProvenance(
+            sampleCount: 6,
+            sourceNames: ["Health"],
+            deviceNames: ["Apple Watch"],
+            latestSampleDate: timestamp
+        )
+        let metrics = DailyMetrics(
+            date: timestamp,
+            sleepingHRV: 47,
+            sleepingHRVProvenance: provenance
+        )
+
+        let encoded = try JSONEncoder().encode(metrics)
+        let decoded = try JSONDecoder().decode(DailyMetrics.self, from: encoded)
+
+        XCTAssertEqual(decoded.sleepingHRVProvenance, provenance)
+    }
+
     // MARK: - Training recommendation
 
     func test_recommendation_greenRecovery() {

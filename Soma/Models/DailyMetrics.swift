@@ -10,6 +10,18 @@ enum ScoreConfidence: String, Codable {
     }
 }
 
+struct HealthDataProvenance: Codable, Equatable {
+    let sampleCount: Int
+    let sourceNames: [String]
+    let deviceNames: [String]
+    let latestSampleDate: Date?
+}
+
+struct HealthQuantitySummary: Equatable {
+    let value: Double?
+    let provenance: HealthDataProvenance
+}
+
 /// Per-workout HR zone breakdown, stored as part of DailyMetrics.
 /// Used to render a stacked zone bar chart in the Strain detail view.
 struct WorkoutZoneBreakdown: Codable, Identifiable {
@@ -73,6 +85,7 @@ struct DailyMetrics: Identifiable, Codable {
     // Sleeping-window signals (used in sleep score)
     var sleepingHR: Double?        // avg HR during sleep window (bpm)
     var sleepingHRV: Double?       // median HRV during sleep window (ms)
+    var sleepingHRVProvenance: HealthDataProvenance?
     var sleepInterruptions: Int?   // number of awake segments
 
     // Sleep stage durations (minutes) — night sleep only, excludes naps
@@ -166,6 +179,7 @@ struct DailyMetrics: Identifiable, Codable {
         exerciseMinutes: Double? = nil,
         sleepingHR: Double? = nil,
         sleepingHRV: Double? = nil,
+        sleepingHRVProvenance: HealthDataProvenance? = nil,
         sleepInterruptions: Int? = nil,
         deepSleepMinutes: Double? = nil,
         remSleepMinutes: Double? = nil,
@@ -221,6 +235,7 @@ struct DailyMetrics: Identifiable, Codable {
         self.exerciseMinutes = exerciseMinutes
         self.sleepingHR = sleepingHR
         self.sleepingHRV = sleepingHRV
+        self.sleepingHRVProvenance = sleepingHRVProvenance
         self.sleepInterruptions = sleepInterruptions
         self.deepSleepMinutes = deepSleepMinutes
         self.remSleepMinutes = remSleepMinutes

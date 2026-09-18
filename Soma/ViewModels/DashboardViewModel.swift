@@ -263,10 +263,14 @@ final class DashboardViewModel: ObservableObject {
         // Fetch sleeping-window signals (sequential — need sleep window first)
         var sleepingHR:  Double? = nil
         var sleepingHRV: Double? = nil
+        var sleepingHRVProvenance: HealthDataProvenance? = nil
         if let start = sleepData.sleepStartTime, let end = sleepData.sleepEndTime {
             async let sHR  = healthKit.fetchSleepingHR(from: start, to: end)
-            async let sHRV = healthKit.fetchSleepingHRV(from: start, to: end)
-            (sleepingHR, sleepingHRV) = try await (sHR, sHRV)
+            async let sHRV = healthKit.fetchSleepingHRVSummary(from: start, to: end)
+            let (fetchedSleepingHR, hrvSummary) = try await (sHR, sHRV)
+            sleepingHR = fetchedSleepingHR
+            sleepingHRV = hrvSummary.value
+            sleepingHRVProvenance = hrvSummary.provenance
         }
 
         // Baselines use prior stored days only. This avoids leaking today's value—or
@@ -492,6 +496,7 @@ final class DashboardViewModel: ObservableObject {
             exerciseMinutes: exerciseMinutes,
             sleepingHR: sleepingHR,
             sleepingHRV: sleepingHRV,
+            sleepingHRVProvenance: sleepingHRVProvenance,
             sleepInterruptions: sleepData.interruptionCount,
             deepSleepMinutes: sleepData.totalDuration > 0 ? sleepData.deepSleepDuration / 60.0 : nil,
             remSleepMinutes: sleepData.totalDuration > 0 ? sleepData.remSleepDuration / 60.0 : nil,

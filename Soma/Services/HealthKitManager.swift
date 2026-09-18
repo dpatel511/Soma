@@ -12,7 +12,7 @@ protocol HealthDataProviding {
     func fetchHeartRateSamples(for date: Date) async throws -> [(Date, Double)]
     func fetchSleepAnalysis(for date: Date) async throws -> SleepData
     func fetchSleepingHR(from start: Date, to end: Date) async throws -> Double?
-    func fetchSleepingHRV(from start: Date, to end: Date) async throws -> Double?
+    func fetchSleepingHRVSummary(from start: Date, to end: Date) async throws -> HealthQuantitySummary
     func fetchActiveEnergy(for date: Date) async throws -> Double
     func fetchSteps(for date: Date) async throws -> Double
     func fetchVO2Max() async throws -> Double?
@@ -444,15 +444,23 @@ final class HealthKitManager: ObservableObject, HealthDataProviding {
     /// Median HRV during the sleep window (used in sleep and recovery scores).
     /// Apple Watch writes sparse SDNN snapshots; the median limits the influence of
     /// one extreme snapshot while preserving the observed values.
-    func fetchSleepingHRV(from start: Date, to end: Date) async throws -> Double? {
+    func fetchSleepingHRVSummary(from start: Date, to end: Date) async throws -> HealthQuantitySummary {
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
         let type = HKQuantityType(.heartRateVariabilitySDNN)
         let unit = HKUnit.secondUnit(with: .milli)
         let samples = try await fetchSamples(type: type, predicate: predicate)
-        let values = samples.compactMap { sample in
-            (sample as? HKQuantitySample)?.quantity.doubleValue(for: unit)
-        }
-        return BaselineCalculator.median(values)
+        let quantitySamples = samples.compactMap { $0 as? HKQuantitySample }
+        let values = quantitySamples.map { $0.quantity.doubleValue(for: unit) }
+        let provenance = HealthDataProvenance(
+            sampleCount: quantitySamples.count,
+            sourceNames: Array(Set(quantitySamples.map { $0.sourceRevision.source.name })).sorted(),
+            deviceNames: Array(Set(quantitySamples.compactMap { $0.device?.name })).sorted(),
+            latestSampleDate: quantitySamples.map(\.endDate).max()
+        )
+        return HealthQuantitySummary(
+            value: BaselineCalculator.median(values),
+            provenance: provenance
+        )
     }
 
     // MARK: - Active Energy

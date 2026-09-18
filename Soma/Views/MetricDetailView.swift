@@ -1022,6 +1022,22 @@ struct MetricDetailView: View {
                 value: "\(priorHRV.count) / \(BaselineCalculator.minDaysRequired) minimum"
             )
             recoveryDataRow(
+                label: "HRV samples",
+                value: metrics.sleepingHRVProvenance.map { "\($0.sampleCount)" } ?? "Not captured"
+            )
+            recoveryDataRow(
+                label: "Source app",
+                value: provenanceList(metrics.sleepingHRVProvenance?.sourceNames)
+            )
+            recoveryDataRow(
+                label: "Source device",
+                value: provenanceList(metrics.sleepingHRVProvenance?.deviceNames)
+            )
+            recoveryDataRow(
+                label: "Latest sample",
+                value: metrics.sleepingHRVProvenance?.latestSampleDate?.formatted(date: .abbreviated, time: .shortened) ?? "Not captured"
+            )
+            recoveryDataRow(
                 label: "Input coverage",
                 value: coverage.map { "\($0)%" } ?? "Unknown"
             )
@@ -1048,6 +1064,11 @@ struct MetricDetailView: View {
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.trailing)
         }
+    }
+
+    private func provenanceList(_ values: [String]?) -> String {
+        guard let values, !values.isEmpty else { return "Not reported" }
+        return values.joined(separator: ", ")
     }
 
     private func insightsPanel(for m: DailyMetrics) -> some View {

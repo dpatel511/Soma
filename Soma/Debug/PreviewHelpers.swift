@@ -21,7 +21,17 @@ final class PreviewHealthKit: HealthDataProviding {
     func fetchHeartRateSamples(for date: Date) async throws -> [(Date, Double)] { [] }
     func fetchSleepAnalysis(for date: Date) async throws -> SleepData { .empty }
     func fetchSleepingHR(from start: Date, to end: Date) async throws -> Double? { 52 }
-    func fetchSleepingHRV(from start: Date, to end: Date) async throws -> Double? { 44 }
+    func fetchSleepingHRVSummary(from start: Date, to end: Date) async throws -> HealthQuantitySummary {
+        HealthQuantitySummary(
+            value: 44,
+            provenance: HealthDataProvenance(
+                sampleCount: 5,
+                sourceNames: ["Apple Watch"],
+                deviceNames: ["Apple Watch"],
+                latestSampleDate: end
+            )
+        )
+    }
     func fetchActiveEnergy(for date: Date) async throws -> Double { 420 }
     func fetchSteps(for date: Date) async throws -> Double { 8_500 }
     func fetchVO2Max() async throws -> Double? { 45.2 }
