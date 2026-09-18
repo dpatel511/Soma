@@ -106,6 +106,60 @@ final class RecoveryCalculatorTests: XCTestCase {
         XCTAssertEqual(withAdj, min(100, withoutAdj + 6), accuracy: 0.001)
     }
 
+    // MARK: - Recovery explanation integrity
+
+    func test_recoveryInsights_usePriorOvernightHRVAndExcludeFuture() {
+        let calendar = Calendar(identifier: .gregorian)
+        let targetDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let prior = (1...7).map { daysAgo in
+            DailyMetrics(
+                date: calendar.date(byAdding: .day, value: -daysAgo, to: targetDate)!,
+                hrvAverage: 200,
+                sleepingHRV: 50
+            )
+        }
+        let target = DailyMetrics(
+            date: targetDate,
+            recoveryScore: 40,
+            sleepScore: 60,
+            hrvAverage: 200,
+            sleepingHRV: 25
+        )
+        let future = DailyMetrics(
+            date: calendar.date(byAdding: .day, value: 1, to: targetDate)!,
+            hrvAverage: 1,
+            sleepingHRV: 1
+        )
+
+        let result = MetricInsightGenerator.generate(
+            for: .recovery,
+            metrics: target,
+            sleepGoal: 8,
+            history: prior + [target, future]
+        )
+
+        XCTAssertTrue(result.observations.contains { $0.contains("25 vs 50 ms") })
+    }
+
+    func test_recoveryInsights_doNotSubstituteDaytimeHRV() {
+        let target = DailyMetrics(
+            date: Date(),
+            recoveryScore: 40,
+            sleepScore: 60,
+            hrvAverage: 200,
+            sleepingHRV: nil
+        )
+
+        let result = MetricInsightGenerator.generate(
+            for: .recovery,
+            metrics: target,
+            sleepGoal: 8,
+            history: []
+        )
+
+        XCTAssertTrue(result.observations.contains { $0.contains("daytime HRV was not substituted") })
+    }
+
     // MARK: - Training recommendation
 
     func test_recommendation_greenRecovery() {

@@ -130,24 +130,25 @@ struct MetricInsightGenerator {
         var obs: [String] = []
         var acts: [String] = []
 
-        // Compute baselines from prior days (exclude today so today's data doesn't skew baseline)
-        let priorDays = history.filter { !Calendar.current.isDateInToday($0.date) }
-        let hrvHist      = BaselineCalculator.extractHistory(from: priorDays, \.hrvAverage)
+        // Match the score calculation: use only observations before the selected day,
+        // and compare overnight SDNN with prior overnight SDNN.
+        let priorDays = BaselineCalculator.priorMetrics(from: history, before: metrics.date)
+        let hrvHist      = BaselineCalculator.extractHistory(from: priorDays, \.sleepingHRV)
         let rhrHist      = BaselineCalculator.extractHistory(from: priorDays, \.restingHR)
-        let hrvBaseline  = BaselineCalculator.computeHRVBaseline(from: hrvHist)
-        let rhrBaseline  = BaselineCalculator.computeRHRBaseline(from: rhrHist)
+        let hrvBaseline  = BaselineCalculator.computePersonalBaseline(from: hrvHist.map { $0.1 })
+        let rhrBaseline  = BaselineCalculator.computePersonalBaseline(from: rhrHist.map { $0.1 })
 
         // Yesterday's strain affects the 10% strain-recovery component
         let yesterdayStrain = priorDays.sorted { $0.date < $1.date }.last?.strainScore ?? 0
 
         // ── HRV component (40% weight) ──────────────────────────────────────
-        if let hrv = metrics.hrvAverage {
+        if let hrv = metrics.sleepingHRV {
             if let base = hrvBaseline, base > 0 {
                 let ratio = hrv / base
                 if ratio < 0.85 {
                     let pct = Int((1.0 - ratio) * 100)
                     obs.append("HRV dropped \(pct)% below your baseline (\(String(format: "%.0f", hrv)) vs \(String(format: "%.0f", base)) ms) — this is the largest recovery driver at 40% weight")
-                    acts.append("Low HRV signals nervous system stress — rest, light movement, or breathwork today")
+                    acts.append("Overnight HRV is below your personal range. Consider rest or light movement and weigh the signal alongside how you feel")
                 } else if ratio > 1.10 {
                     let pct = Int((ratio - 1.0) * 100)
                     obs.append("HRV is \(pct)% above baseline (\(String(format: "%.0f", hrv)) ms) — a strong recovery boost")
@@ -155,8 +156,10 @@ struct MetricInsightGenerator {
                     obs.append("HRV is near your baseline (\(String(format: "%.0f", hrv)) ms) — neutral recovery impact")
                 }
             } else {
-                obs.append("HRV: \(String(format: "%.0f", hrv)) ms (baseline still building — need 7+ days)")
+                obs.append("Overnight HRV: \(String(format: "%.0f", hrv)) ms (baseline still building — need 7+ prior nights)")
             }
+        } else {
+            obs.append("Overnight HRV was not recorded, so the recovery estimate has lower coverage; daytime HRV was not substituted")
         }
 
         // ── RHR component (25% weight) ──────────────────────────────────────
@@ -189,15 +192,15 @@ struct MetricInsightGenerator {
         }
 
         // ── Strain recovery component (10% weight) ───────────────────────────
-        if yesterdayStrain > 15 {
+        if yesterdayStrain > 70 {
             obs.append("High strain yesterday (\(Int(yesterdayStrain))/100) reduced recovery capacity via the strain component (10% weight)")
             acts.append("After high-strain days, easy active recovery helps — avoid another intense session today")
         }
 
         // Overall fallback
         if obs.isEmpty {
-            obs.append("All key recovery parameters are within your normal range — looking good")
-            acts.append("Good day for moderate to high intensity training")
+            obs.append("The available recovery inputs are near your recent personal range")
+            acts.append("Use the estimate alongside how you feel when choosing training intensity")
         } else if acts.isEmpty && metrics.recoveryScore < 50 {
             acts.append("Reduce training intensity today and prioritize sleep tonight")
         }
@@ -298,6 +301,10 @@ struct MetricDetailView: View {
         viewModel.loadHistory(days: selectedRange.days)
     }
 
+    private var analysisHistory: [DailyMetrics] {
+        viewModel.loadHistory(days: 30)
+    }
+
     private var selectedMetrics: DailyMetrics? {
         if let date = selectedDate {
             return history.min {
@@ -331,6 +338,9 @@ struct MetricDetailView: View {
                             }
                         }
                         if let m = selectedMetrics {
+                            if metric == .recovery {
+                                recoveryDataQualityPanel(for: m)
+                            }
                             insightsPanel(for: m)
                         }
                         // Sleep extras (sleep metric only)
@@ -822,11 +832,69 @@ struct MetricDetailView: View {
 
     // MARK: - Insights Panel
 
+    private func recoveryDataQualityPanel(for metrics: DailyMetrics) -> some View {
+        let prior = BaselineCalculator.priorMetrics(from: analysisHistory, before: metrics.date)
+        let priorHRV = BaselineCalculator.extractHistory(from: prior, \.sleepingHRV).map { $0.1 }
+        let baseline = BaselineCalculator.computePersonalBaseline(from: priorHRV)
+        let coverage = metrics.recoveryDataCoverage.map { Int(($0 * 100).rounded()) }
+        let confidence = metrics.recoveryConfidence?.rawValue.capitalized ?? "Unknown"
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "waveform.path.ecg.rectangle")
+                    .foregroundStyle(Color.somaGreen)
+                Text("Recovery Data Quality")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            }
+
+            recoveryDataRow(
+                label: "Overnight HRV",
+                value: metrics.sleepingHRV.map { String(format: "%.0f ms", $0) } ?? "Not recorded"
+            )
+            recoveryDataRow(
+                label: "Prior-night baseline",
+                value: baseline.map { String(format: "%.0f ms", $0) } ?? "Building"
+            )
+            recoveryDataRow(
+                label: "Baseline nights",
+                value: "\(priorHRV.count) / \(BaselineCalculator.minDaysRequired) minimum"
+            )
+            recoveryDataRow(
+                label: "Input coverage",
+                value: coverage.map { "\($0)%" } ?? "Unknown"
+            )
+            recoveryDataRow(label: "Confidence", value: confidence)
+
+            Text("Apple Health SDNN · median of sleep-window samples · daytime HRV is not substituted. This is a wellness estimate, not a medical measurement.")
+                .font(.caption)
+                .foregroundStyle(Color.somaTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accentCard(Color.somaGreen, cornerRadius: 20, padding: 16)
+        .padding(.horizontal)
+    }
+
+    private func recoveryDataRow(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(Color.somaTextSecondary)
+            Spacer()
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
     private func insightsPanel(for m: DailyMetrics) -> some View {
         let score = Int(metric.score(from: m).rounded())
         let state = metric.state(from: m)
-        let result = MetricInsightGenerator.generate(for: metric, metrics: m, sleepGoal: sleepGoal, history: history)
-        let acrNote = metric == .recovery ? MetricInsightGenerator.acrDescription(history: history) : nil
+        let result = MetricInsightGenerator.generate(for: metric, metrics: m, sleepGoal: sleepGoal, history: analysisHistory)
+        let acrHistory = BaselineCalculator.priorMetrics(from: analysisHistory, before: m.date)
+        let acrNote = metric == .recovery ? MetricInsightGenerator.acrDescription(history: acrHistory) : nil
 
         return VStack(alignment: .leading, spacing: 14) {
             // Header — tinted to the metric's current state color so the insight card
