@@ -14,6 +14,30 @@ struct BehaviorInsight: Identifiable, Codable {
     let confidenceIntervalUpper: Double?
     let isNegativeImpact: Bool   // true = behavior harms this metric
 
+    init(
+        id: UUID,
+        behaviorName: String,
+        metricName: String,
+        averageWith: Double,
+        averageWithout: Double,
+        occurrences: Int,
+        comparisonOccurrences: Int? = nil,
+        confidenceIntervalLower: Double? = nil,
+        confidenceIntervalUpper: Double? = nil,
+        isNegativeImpact: Bool
+    ) {
+        self.id = id
+        self.behaviorName = behaviorName
+        self.metricName = metricName
+        self.averageWith = averageWith
+        self.averageWithout = averageWithout
+        self.occurrences = occurrences
+        self.comparisonOccurrences = comparisonOccurrences
+        self.confidenceIntervalLower = confidenceIntervalLower
+        self.confidenceIntervalUpper = confidenceIntervalUpper
+        self.isNegativeImpact = isNegativeImpact
+    }
+
     var delta: Double { averageWith - averageWithout }
 
     var impactDescription: String {
