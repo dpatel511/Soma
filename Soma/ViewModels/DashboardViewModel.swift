@@ -428,10 +428,7 @@ final class DashboardViewModel: ObservableObject {
         }()
 
         // Sleep consistency score — stddev of sleep start/end times across prior 7 stored days
-        let consistencyWindow = last30
-            .filter { Calendar.current.startOfDay(for: $0.date) < Calendar.current.startOfDay(for: date) }
-            .sorted { $0.date < $1.date }
-            .suffix(7)
+        let consistencyWindow = priorMetrics.suffix(7)
         let sleepConsistencyScore = SleepConsistencyCalculator.calculate(
             startTimes: Array(consistencyWindow).map { $0.sleepStartTime },
             endTimes:   Array(consistencyWindow).map { $0.sleepEndTime }
