@@ -54,6 +54,41 @@ final class BaselineCalculatorTests: XCTestCase {
         XCTAssertEqual(baseline!, 56, accuracy: 0.01)
     }
 
+    func test_priorMetrics_excludesTargetDayAndFutureDuringBackfill() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let target = calendar.date(from: DateComponents(year: 2024, month: 1, day: 15, hour: 12))!
+        let prior = DailyMetrics(date: calendar.date(byAdding: .day, value: -1, to: target)!)
+        let sameDayLater = DailyMetrics(date: calendar.date(byAdding: .hour, value: 2, to: target)!)
+        let future = DailyMetrics(date: calendar.date(byAdding: .day, value: 1, to: target)!)
+
+        let result = BaselineCalculator.priorMetrics(
+            from: [future, sameDayLater, prior],
+            before: target,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(result.map(\.id), [prior.id])
+    }
+
+    func test_priorMetrics_keepsMostRecentLimitInChronologicalOrder() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let target = Date(timeIntervalSince1970: 1_700_000_000)
+        let metrics = (1...5).reversed().map { daysAgo in
+            DailyMetrics(date: calendar.date(byAdding: .day, value: -daysAgo, to: target)!)
+        }
+
+        let result = BaselineCalculator.priorMetrics(
+            from: metrics.shuffled(),
+            before: target,
+            limit: 3,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(result.map(\.id), Array(metrics.suffix(3)).map(\.id))
+    }
+
     // MARK: - Normalize Ratio
 
     func test_normalizeRatio_midRange() {
@@ -94,6 +129,17 @@ final class BaselineCalculatorTests: XCTestCase {
 
     func test_clamp_aboveMax() {
         XCTAssertEqual(BaselineCalculator.clamp(150, min: 0, max: 100), 100)
+    }
+
+    // MARK: - Robust daily aggregation
+
+    func test_median_evenValues_limitsSingleExtreme() {
+        XCTAssertEqual(BaselineCalculator.median([48, 50, 52, 500]), 51)
+    }
+
+    func test_median_filtersInvalidPhysiologicalSamples() {
+        XCTAssertEqual(BaselineCalculator.median([.nan, -.infinity, 0, -4, 42]), 42)
+        XCTAssertNil(BaselineCalculator.median([.nan, 0, -4]))
     }
 
     // MARK: - Log-domain HRV statistics

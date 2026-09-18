@@ -441,11 +441,18 @@ final class HealthKitManager: ObservableObject, HealthDataProviding {
         return try await fetchStatisticsAverage(type: type, predicate: predicate, unit: unit)
     }
 
-    /// Average HRV during the sleep window (used in sleep score).
+    /// Median HRV during the sleep window (used in sleep and recovery scores).
+    /// Apple Watch writes sparse SDNN snapshots; the median limits the influence of
+    /// one extreme snapshot while preserving the observed values.
     func fetchSleepingHRV(from start: Date, to end: Date) async throws -> Double? {
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
         let type = HKQuantityType(.heartRateVariabilitySDNN)
-        return try await fetchStatisticsAverage(type: type, predicate: predicate, unit: .secondUnit(with: .milli))
+        let unit = HKUnit.secondUnit(with: .milli)
+        let samples = try await fetchSamples(type: type, predicate: predicate)
+        let values = samples.compactMap { sample in
+            (sample as? HKQuantitySample)?.quantity.doubleValue(for: unit)
+        }
+        return BaselineCalculator.median(values)
     }
 
     // MARK: - Active Energy

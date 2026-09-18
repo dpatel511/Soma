@@ -31,7 +31,7 @@ struct WorkoutZoneBreakdown: Codable, Identifiable {
 }
 
 struct DailyMetrics: Identifiable, Codable {
-    static let currentScoreAlgorithmVersion = 2
+    static let currentScoreAlgorithmVersion = 3
 
     let id: UUID
     let date: Date
@@ -72,7 +72,7 @@ struct DailyMetrics: Identifiable, Codable {
 
     // Sleeping-window signals (used in sleep score)
     var sleepingHR: Double?        // avg HR during sleep window (bpm)
-    var sleepingHRV: Double?       // avg HRV during sleep window (ms)
+    var sleepingHRV: Double?       // median HRV during sleep window (ms)
     var sleepInterruptions: Int?   // number of awake segments
 
     // Sleep stage durations (minutes) — night sleep only, excludes naps

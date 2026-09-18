@@ -233,8 +233,6 @@ final class DashboardViewModel: ObservableObject {
         async let respRate   = healthKit.fetchRespiratoryRate(for: date)
         async let bloodOx    = healthKit.fetchBloodOxygen(for: date)
         async let exerciseMin = healthKit.fetchExerciseMinutes(for: date)
-        async let hrvHistory = healthKit.fetchHRVHistory(days: 30)
-        async let rhrHistory = healthKit.fetchRestingHRHistory(days: 30)
         // Priority 2 data sources
         async let standHoursFetch      = healthKit.fetchStandHours(for: date)
         async let walkingHRFetch       = healthKit.fetchWalkingHRAverage(for: date)
@@ -242,10 +240,10 @@ final class DashboardViewModel: ObservableObject {
         async let wristTempFetch       = healthKit.fetchWristTemperature(for: date)
 
         let (hrvValues, rhrValue, hrData, sleepData, activeCalories, stepCount,
-             vo2Max, respRateVal, bloodOxygen, exerciseMinutes, hrvHist, rhrHist,
+             vo2Max, respRateVal, bloodOxygen, exerciseMinutes,
              standHoursVal, walkingHRVal, mindfulMinsVal) = try await (
                 hrv, rhr, hrSamples, sleepFetch, calories, steps, vo2, respRate,
-                bloodOx, exerciseMin, hrvHistory, rhrHistory,
+                bloodOx, exerciseMin,
                 standHoursFetch, walkingHRFetch, mindfulMinutesFetch
              )
         let wristTempVal = try? await wristTempFetch
@@ -271,13 +269,19 @@ final class DashboardViewModel: ObservableObject {
             (sleepingHR, sleepingHRV) = try await (sHR, sHRV)
         }
 
-        // Baselines
-        let hrvBaseline = BaselineCalculator.computeHRVBaseline(from: hrvHist)
-        let rhrBaseline = BaselineCalculator.computeRHRBaseline(from: rhrHist)
-        let last30 = store.loadLast(30)
-        let sleepingHRHistory = BaselineCalculator.extractHistory(from: last30, \.sleepingHR)
+        // Baselines use prior stored days only. This avoids leaking today's value—or
+        // future values during historical backfill—into the reference distribution.
+        let priorMetrics = BaselineCalculator.priorMetrics(
+            from: store.loadLast(90),
+            before: date
+        )
+        let sleepingHRVHistory = BaselineCalculator.extractHistory(from: priorMetrics, \.sleepingHRV)
+        let rhrHistory = BaselineCalculator.extractHistory(from: priorMetrics, \.restingHR)
+        let hrvBaseline = BaselineCalculator.computeHRVBaseline(from: sleepingHRVHistory)
+        let rhrBaseline = BaselineCalculator.computeRHRBaseline(from: rhrHistory)
+        let sleepingHRHistory = BaselineCalculator.extractHistory(from: priorMetrics, \.sleepingHR)
         let sleepingHRBaseline = BaselineCalculator.computeBaseline(from: sleepingHRHistory)
-        isBaselineBuilding = !BaselineCalculator.hasEnoughData(hrvHist)
+        isBaselineBuilding = !BaselineCalculator.hasEnoughData(sleepingHRVHistory)
 
         // Previous day
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: date)!
@@ -346,10 +350,10 @@ final class DashboardViewModel: ObservableObject {
         let strainCapacity = StrainCalculator.capacity(fromLoads: strainLoadHistory)
         let strainScore = StrainCalculator.score(load: strainResult.total, capacity: strainCapacity)
 
-        let todayHRV = hrvValues.isEmpty ? nil : hrvValues.reduce(0, +) / Double(hrvValues.count)
-        // Use sleeping HRV for recovery — it's measured overnight and stays stable after waking.
-        // Falls back to daytime HRV average only if no sleep window was detected.
-        let recoveryHRV = sleepingHRV ?? todayHRV
+        let todayHRV = BaselineCalculator.median(hrvValues)
+        // Recovery compares like with like: sleep-window SDNN against prior sleep-window
+        // SDNN. Daytime values are retained for display but are not substituted here.
+        let recoveryHRV = sleepingHRV
 
         let recoveryScore = RecoveryCalculator.calculate(input: RecoveryInput(
             todayHRV: recoveryHRV,
@@ -358,7 +362,7 @@ final class DashboardViewModel: ObservableObject {
             rhrBaseline: rhrBaseline,
             sleepScore: sleepScore,
             yesterdayStrain: yesterdayStrain_0_21,
-            hrvHistory: hrvHist.sorted { $0.0 < $1.0 }.map { $0.1 }
+            hrvHistory: sleepingHRVHistory.sorted { $0.0 < $1.0 }.map { $0.1 }
             // FUTURE (women): recoveryAdjustment: cycleRecoveryAdjustment — see above.
         ))
 

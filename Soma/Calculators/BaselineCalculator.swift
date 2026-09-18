@@ -45,6 +45,22 @@ struct BaselineCalculator {
         }
     }
 
+    /// Returns the most recent completed days before `date`, ordered oldest to newest.
+    /// Excluding the target day and later days prevents look-ahead bias during backfill.
+    static func priorMetrics(
+        from metrics: [DailyMetrics],
+        before date: Date,
+        limit: Int = 30,
+        calendar: Calendar = .current
+    ) -> [DailyMetrics] {
+        guard limit > 0 else { return [] }
+        let targetDay = calendar.startOfDay(for: date)
+        return Array(metrics
+            .filter { calendar.startOfDay(for: $0.date) < targetDay }
+            .sorted { $0.date < $1.date }
+            .suffix(limit))
+    }
+
     /// Whether there is enough data for a reliable baseline.
     static func hasEnoughData(_ history: [(Date, Double)]) -> Bool {
         history.count >= minDaysRequired
@@ -66,6 +82,18 @@ struct BaselineCalculator {
 
     static func clamp(_ value: Double, min minVal: Double, max maxVal: Double) -> Double {
         Swift.max(minVal, Swift.min(maxVal, value))
+    }
+
+    /// Median of finite, positive physiological samples. A daily median limits the
+    /// influence of a single extreme wearable reading without inventing replacement data.
+    static func median(_ values: [Double]) -> Double? {
+        let sorted = values.filter { $0.isFinite && $0 > 0 }.sorted()
+        guard !sorted.isEmpty else { return nil }
+        let middle = sorted.count / 2
+        if sorted.count.isMultiple(of: 2) {
+            return (sorted[middle - 1] + sorted[middle]) / 2
+        }
+        return sorted[middle]
     }
 
     // MARK: - Log-domain HRV statistics

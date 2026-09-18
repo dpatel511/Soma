@@ -29,7 +29,7 @@ Do not claim WHOOP-equivalent accuracy, medical interpretation, causal behavior 
 |---|---|---|---|
 | HRV baseline | Apple Health SDNN, arithmetic baseline plus log-domain EWMA/z-score | **Supported input; plausible scoring** | Make measurement timing/source visible. Avoid treating daytime SDNN and overnight SDNN as interchangeable. Validate the mapping from z-score to 0–100. |
 | Resting heart rate | Difference from 30-day personal baseline | **Supported input; plausible scoring** | Show baseline and delta. Do not imply that a single deviation establishes readiness or illness. |
-| Recovery | 40% HRV, 25% RHR, 25% sleep, 10% previous strain | **Plausible heuristic** | Validate the formula. Version 2 now records input coverage/confidence and removes the ACR penalty and categorical performance claims. |
+| Recovery | 40% HRV, 25% RHR, 25% sleep, 10% previous strain | **Plausible heuristic** | Validate the formula. Version 3 compares sleep-window median SDNN with prior sleep-window observations, prevents look-ahead during backfill, and leaves overnight HRV unavailable rather than substituting daytime HRV. The weights remain unvalidated. |
 | Cardiovascular strain | Zone-minutes with custom convex weights, capped sampling intervals, mapped through a saturating curve against 14-day mean load | **Plausible heuristic** | Version 2 preserves headroom above an average-load day and stores HR data coverage. It still needs calibration against duration/intensity data. |
 | Workout attribution | HR-pair midpoint inside HealthKit workout windows | **Reasonable engineering approximation** | Mark boundary attribution as approximate and test overlapping/adjacent workouts. Strength work is underrepresented because HR alone misses muscular load. |
 | Sleep duration/timing | Apple Health sleep samples and naps | **Supported for consumer trend use** | Treat duration/timing as estimates, particularly when sources overlap. Surface source and completeness. |
@@ -183,6 +183,8 @@ Replace categorical physiological claims with calibrated language:
 4. Introduce explicit unavailable/partial/calibrating states; never substitute a displayed neutral score for absent data.
 
 ### P1 — metric integrity
+
+- **Implemented locally; CI pending (version 3):** Recovery HRV now uses a median of finite positive sleep-window SDNN samples, matches that value to prior sleep-window history, excludes the target/future days from backfilled baselines, and does not replace missing overnight HRV with daytime values.
 
 Implemented in score algorithm version 2:
 

@@ -50,7 +50,7 @@ HR below 50% of MaxHR is **passive physiology** (resting/sleeping) and is exclud
 StrainLoad = Σ (minutes in zone × zone weight)
 ```
 
-**Handling HealthKit sampling gaps**: Apple Watch HR samples are sparse outside workouts (every 5–10 minutes at rest vs every 5 seconds during exercise). A 10-minute gap between two passive readings must not be interpreted as 10 minutes of cardiovascular effort. Each inter-sample interval is therefore **capped at 1 minute**:
+**Handling HealthKit sampling gaps**: Apple Watch heart-rate sampling is irregular. Workout sessions generally provide denser samples, but HealthKit does not guarantee a fixed cadence and validation studies report more missing readings as exercise intensity rises. A long gap between two passive readings must not be interpreted as continuous cardiovascular effort. Each inter-sample interval is therefore **capped at 1 minute**, and workout summaries report observed heart-rate coverage:
 ```
 minutes = min(rawMinutes, 1.0)
 ```
@@ -93,7 +93,7 @@ The nonlinear curve preserves headroom: a day equal to personal capacity scores 
 | Duration       | 40%    | `min(100, T/N × 100)` — T = total sleep, N = personalised sleep need |
 | Efficiency     | 20%    | Time asleep ÷ time in bed; missing in-bed data is treated as neutral |
 | Stage mix      | 10%    | Low-weight context from deep/REM/core estimates |
-| Sleeping HRV   | 10%    | Ratio vs 30-day HRV baseline; higher = better |
+| Sleeping HRV   | 10%    | Sleep-window median vs prior sleep-window baseline; higher = better |
 | Sleeping HR    | 10%    | Ratio vs baseline; lower = better |
 | Interruptions  | 10%    | `max(0, 100 − awake_segments × 15)` |
 
@@ -106,6 +106,8 @@ The nonlinear curve preserves headroom: a day equal to personal capacity scores 
 ```
 Recovery = 0.40 × HRV_score + 0.25 × RHR_score + 0.25 × Sleep_score + 0.10 × Strain_recovery
 ```
+
+Recovery uses Apple Health's SDNN samples, not WHOOP's proprietary overnight RMSSD measurement. Version 3 compares the current sleep-window median only with prior sleep-window observations; it does not substitute daytime HRV when overnight data is missing. The score is a transparent wellness heuristic, not a validated medical or performance-readiness measurement.
 
 ---
 
