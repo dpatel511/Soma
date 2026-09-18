@@ -1,6 +1,22 @@
 import SwiftUI
 import Charts
 
+private struct RecoveryHRVChartPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let value: Double
+    let segment: Int
+    let baseline: Double?
+    let lowerBand: Double?
+    let upperBand: Double?
+}
+
+private struct ScoreVersionBoundary: Identifiable {
+    let id = UUID()
+    let date: Date
+    let version: Int
+}
+
 // MARK: - Metric Type
 
 enum DashboardMetric: String, Identifiable {
@@ -302,7 +318,9 @@ struct MetricDetailView: View {
     }
 
     private var analysisHistory: [DailyMetrics] {
-        viewModel.loadHistory(days: 30)
+        // Include a 30-day lookback before the visible range so the earliest plotted
+        // day can still build a prior-only baseline without borrowing future values.
+        viewModel.loadHistory(days: selectedRange.days + 30)
     }
 
     private var selectedMetrics: DailyMetrics? {
@@ -328,6 +346,9 @@ struct MetricDetailView: View {
                     VStack(spacing: 18) {
                         rangePicker
                         scoreChart
+                        if metric == .recovery {
+                            recoveryHRVChart
+                        }
                         if metric == .stress {
                             intradayStressChart
                         }
@@ -831,6 +852,146 @@ struct MetricDetailView: View {
     }
 
     // MARK: - Insights Panel
+
+    private var recoveryHRVPoints: [RecoveryHRVChartPoint] {
+        let ordered = history.sorted { $0.date < $1.date }
+        var segment = 0
+
+        return ordered.compactMap { metrics in
+            guard let value = metrics.sleepingHRV else {
+                segment += 1
+                return nil
+            }
+            let prior = BaselineCalculator.priorMetrics(from: analysisHistory, before: metrics.date)
+            let priorValues = BaselineCalculator.extractHistory(from: prior, \.sleepingHRV).map { $0.1 }
+            let stats = BaselineCalculator.logHRVStats(values: priorValues)
+            return RecoveryHRVChartPoint(
+                date: metrics.date,
+                value: value,
+                segment: segment,
+                baseline: stats.map { Foundation.exp($0.meanLn) },
+                lowerBand: stats.map { Foundation.exp($0.meanLn - $0.sdLn) },
+                upperBand: stats.map { Foundation.exp($0.meanLn + $0.sdLn) }
+            )
+        }
+    }
+
+    private var missingRecoveryHRVDates: [Date] {
+        history.filter { $0.sleepingHRV == nil }.map { $0.date }
+    }
+
+    private var scoreVersionBoundaries: [ScoreVersionBoundary] {
+        let ordered = history.sorted { $0.date < $1.date }
+        guard ordered.count > 1 else { return [] }
+        return ordered.indices.dropFirst().compactMap { index in
+            let previous = ordered[index - 1].scoreAlgorithmVersion
+            guard let current = ordered[index].scoreAlgorithmVersion,
+                  current != previous else { return nil }
+            return ScoreVersionBoundary(date: ordered[index].date, version: current)
+        }
+    }
+
+    private var recoveryHRVChart: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundStyle(Color.somaGreen)
+                Text("Overnight HRV vs Personal Range")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+
+            if recoveryHRVPoints.isEmpty {
+                Text("No overnight HRV has been recorded in this range.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.somaTextSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
+            } else {
+                Chart {
+                    ForEach(recoveryHRVPoints) { point in
+                        if let low = point.lowerBand, let high = point.upperBand {
+                            AreaMark(
+                                x: .value("Date", point.date, unit: .day),
+                                yStart: .value("Lower personal range", low),
+                                yEnd: .value("Upper personal range", high)
+                            )
+                            .foregroundStyle(Color.somaGreen.opacity(0.14))
+                        }
+                        if let baseline = point.baseline {
+                            LineMark(
+                                x: .value("Date", point.date, unit: .day),
+                                y: .value("Baseline", baseline)
+                            )
+                            .foregroundStyle(Color.somaGray)
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        }
+                        LineMark(
+                            x: .value("Date", point.date, unit: .day),
+                            y: .value("Overnight SDNN", point.value),
+                            series: .value("Continuous observations", point.segment)
+                        )
+                        .foregroundStyle(Color.somaGreen)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        PointMark(
+                            x: .value("Date", point.date, unit: .day),
+                            y: .value("Overnight SDNN", point.value)
+                        )
+                        .foregroundStyle(Color.somaGreen)
+                        .symbolSize(32)
+                    }
+
+                    ForEach(missingRecoveryHRVDates, id: \.self) { date in
+                        RuleMark(x: .value("Missing overnight HRV", date, unit: .day))
+                            .foregroundStyle(Color.somaYellow.opacity(0.45))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 4]))
+                    }
+
+                    ForEach(scoreVersionBoundaries) { boundary in
+                        RuleMark(x: .value("Algorithm change", boundary.date, unit: .day))
+                            .foregroundStyle(Color.somaBlue.opacity(0.75))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 3]))
+                            .annotation(position: .top, alignment: .leading) {
+                                Text("v\(boundary.version)")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Color.somaBlue)
+                            }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: axisDayStride)) {
+                        AxisGridLine()
+                        AxisTick()
+                        AxisValueLabel(format: axisDayFormat)
+                    }
+                }
+                .chartYAxisLabel("SDNN (ms)")
+                .frame(height: 220)
+            }
+
+            HStack(spacing: 14) {
+                chartLegend(color: Color.somaGreen, label: "Overnight median")
+                chartLegend(color: Color.somaGreen.opacity(0.3), label: "Personal range")
+                chartLegend(color: Color.somaYellow, label: "Missing")
+            }
+            Text("The personal range is the prior-night log-domain baseline ± one personal standard deviation. It appears after seven recorded nights.")
+                .font(.caption2)
+                .foregroundStyle(Color.somaTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .background(SomaGradient.card)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.somaHairline, lineWidth: 1))
+        .padding(.horizontal)
+    }
+
+    private func chartLegend(color: Color, label: String) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(label).font(.caption2).foregroundStyle(Color.somaTextSecondary)
+        }
+    }
 
     private func recoveryDataQualityPanel(for metrics: DailyMetrics) -> some View {
         let prior = BaselineCalculator.priorMetrics(from: analysisHistory, before: metrics.date)

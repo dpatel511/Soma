@@ -186,6 +186,7 @@ Replace categorical physiological claims with calibrated language:
 
 - **Implemented locally; CI pending (version 3):** Recovery HRV now uses a median of finite positive sleep-window SDNN samples, matches that value to prior sleep-window history, excludes the target/future days from backfilled baselines, and does not replace missing overnight HRV with daytime values.
 - **Implemented locally; CI pending:** The recovery detail screen now exposes overnight SDNN, its prior-night baseline, baseline-night count, weighted input coverage, confidence, and measurement limitations. Historical explanations use only data preceding the selected date.
+- **Implemented locally; CI pending:** Recovery trends now plot overnight SDNN against a prior-night log-domain personal range, break lines across missing nights, mark missing observations, and label score-algorithm version boundaries.
 
 Implemented in score algorithm version 2:
 
