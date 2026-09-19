@@ -86,7 +86,11 @@ final class HealthKitManager: ObservableObject, HealthDataProviding {
         let predicate = dayPredicate(for: date)
         let type = HKQuantityType(.heartRateVariabilitySDNN)
         let samples = try await fetchSamples(type: type, predicate: predicate)
-        return samples.compactMap { ($0 as? HKQuantitySample)?.quantity.doubleValue(for: .secondUnit(with: .milli)) }
+        let timedValues = samples.compactMap { sample -> (Date, Double)? in
+            guard let quantity = sample as? HKQuantitySample else { return nil }
+            return (quantity.startDate, quantity.quantity.doubleValue(for: .secondUnit(with: .milli)))
+        }
+        return BaselineCalculator.deduplicateTimedValues(timedValues).map { $0.1 }
     }
 
     func fetchHRVHistory(days: Int) async throws -> [(Date, Double)] {
@@ -125,10 +129,11 @@ final class HealthKitManager: ObservableObject, HealthDataProviding {
         let type = HKQuantityType(.heartRate)
         let unit = HKUnit.count().unitDivided(by: .minute())
         let samples = try await fetchSamples(type: type, predicate: predicate)
-        return samples.compactMap { sample -> (Date, Double)? in
+        let timedValues = samples.compactMap { sample -> (Date, Double)? in
             guard let qty = sample as? HKQuantitySample else { return nil }
             return (qty.startDate, qty.quantity.doubleValue(for: unit))
         }
+        return BaselineCalculator.deduplicateTimedValues(timedValues)
     }
 
     // MARK: - Sleep
@@ -450,15 +455,19 @@ final class HealthKitManager: ObservableObject, HealthDataProviding {
         let unit = HKUnit.secondUnit(with: .milli)
         let samples = try await fetchSamples(type: type, predicate: predicate)
         let quantitySamples = samples.compactMap { $0 as? HKQuantitySample }
-        let values = quantitySamples.map { $0.quantity.doubleValue(for: unit) }
+        let timedValues = quantitySamples.map { ($0.startDate, $0.quantity.doubleValue(for: unit)) }
+        let validTimedValues = timedValues.filter { $0.1.isFinite && $0.1 > 0 }
+        let retainedValues = BaselineCalculator.deduplicateTimedValues(validTimedValues)
         let provenance = HealthDataProvenance(
             sampleCount: quantitySamples.count,
+            retainedSampleCount: retainedValues.count,
+            duplicateSampleCount: validTimedValues.count - retainedValues.count,
             sourceNames: Array(Set(quantitySamples.map { $0.sourceRevision.source.name })).sorted(),
             deviceNames: Array(Set(quantitySamples.compactMap { $0.device?.name })).sorted(),
             latestSampleDate: quantitySamples.map(\.endDate).max()
         )
         return HealthQuantitySummary(
-            value: BaselineCalculator.median(values),
+            value: BaselineCalculator.median(retainedValues.map { $0.1 }),
             provenance: provenance
         )
     }
@@ -618,9 +627,10 @@ final class HealthKitManager: ObservableObject, HealthDataProviding {
     private func groupByDay(samples: [HKQuantitySample], unit: HKUnit) -> [(Date, Double)] {
         let cal = Calendar.current
         var groups: [Date: [Double]] = [:]
-        for sample in samples {
-            let day = cal.startOfDay(for: sample.startDate)
-            groups[day, default: []].append(sample.quantity.doubleValue(for: unit))
+        let timedValues = samples.map { ($0.startDate, $0.quantity.doubleValue(for: unit)) }
+        for (date, value) in BaselineCalculator.deduplicateTimedValues(timedValues) {
+            let day = cal.startOfDay(for: date)
+            groups[day, default: []].append(value)
         }
         return groups.sorted { $0.key < $1.key }.map { (day, values) in
             (day, values.reduce(0, +) / Double(values.count))

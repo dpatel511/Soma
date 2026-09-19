@@ -1022,9 +1022,15 @@ struct MetricDetailView: View {
                 value: "\(priorHRV.count) / \(BaselineCalculator.minDaysRequired) minimum"
             )
             recoveryDataRow(
-                label: "HRV samples",
+                label: "HRV samples returned",
                 value: metrics.sleepingHRVProvenance.map { "\($0.sampleCount)" } ?? "Not captured"
             )
+            if let retained = metrics.sleepingHRVProvenance?.retainedSampleCount {
+                recoveryDataRow(label: "Samples used", value: "\(retained)")
+            }
+            if let duplicates = metrics.sleepingHRVProvenance?.duplicateSampleCount, duplicates > 0 {
+                recoveryDataRow(label: "Duplicates collapsed", value: "\(duplicates)")
+            }
             recoveryDataRow(
                 label: "Source app",
                 value: provenanceList(metrics.sleepingHRVProvenance?.sourceNames)
@@ -1042,6 +1048,16 @@ struct MetricDetailView: View {
                 value: coverage.map { "\($0)%" } ?? "Unknown"
             )
             recoveryDataRow(label: "Confidence", value: confidence)
+
+            if let sources = metrics.sleepingHRVProvenance?.sourceNames, sources.count > 1 {
+                Label(
+                    "Multiple HealthKit sources contributed. Simultaneous observations were collapsed, but Soma did not automatically discard an entire source.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(Color.somaYellow)
+                .fixedSize(horizontal: false, vertical: true)
+            }
 
             Text("Apple Health SDNN · median of sleep-window samples · daytime HRV is not substituted. This is a wellness estimate, not a medical measurement.")
                 .font(.caption)

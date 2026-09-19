@@ -96,6 +96,16 @@ struct BaselineCalculator {
         return sorted[middle]
     }
 
+    /// Collapses simultaneous observations into one robust value. HealthKit can return
+    /// records from multiple sources; retaining all of them would overweight that instant.
+    /// Distinct timestamps are preserved, even when they are close together.
+    static func deduplicateTimedValues(_ samples: [(Date, Double)]) -> [(Date, Double)] {
+        let grouped = Dictionary(grouping: samples.filter { $0.1.isFinite && $0.1 > 0 }) { $0.0 }
+        return grouped.compactMap { date, observations in
+            median(observations.map { $0.1 }).map { (date, $0) }
+        }.sorted { $0.0 < $1.0 }
+    }
+
     // MARK: - Log-domain HRV statistics
 
     /// Recency-weighted geometric baseline + log-domain spread of an HRV series.

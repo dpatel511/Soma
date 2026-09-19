@@ -26,6 +26,7 @@ final class PreviewHealthKit: HealthDataProviding {
             value: 44,
             provenance: HealthDataProvenance(
                 sampleCount: 5,
+                retainedSampleCount: 5,
                 sourceNames: ["Apple Watch"],
                 deviceNames: ["Apple Watch"],
                 latestSampleDate: end

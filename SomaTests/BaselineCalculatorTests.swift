@@ -142,6 +142,34 @@ final class BaselineCalculatorTests: XCTestCase {
         XCTAssertNil(BaselineCalculator.median([.nan, 0, -4]))
     }
 
+    func test_deduplicateTimedValues_collapsesOnlyMatchingTimestamps() {
+        let first = Date(timeIntervalSince1970: 1_000)
+        let second = first.addingTimeInterval(0.5)
+        let result = BaselineCalculator.deduplicateTimedValues([
+            (first, 48),
+            (first, 52),
+            (second, 60)
+        ])
+
+        XCTAssertEqual(result.count, 2)
+        XCTAssertEqual(result[0].0, first)
+        XCTAssertEqual(result[0].1, 50)
+        XCTAssertEqual(result[1].0, second)
+        XCTAssertEqual(result[1].1, 60)
+    }
+
+    func test_deduplicateTimedValues_filtersInvalidValues() {
+        let date = Date(timeIntervalSince1970: 1_000)
+        let result = BaselineCalculator.deduplicateTimedValues([
+            (date, .nan),
+            (date, 0),
+            (date, 45)
+        ])
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].1, 45)
+    }
+
     // MARK: - Log-domain HRV statistics
 
     func test_logHRVStats_nilBelowMinDays() {

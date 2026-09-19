@@ -3,6 +3,13 @@ import XCTest
 
 final class RecoveryCalculatorTests: XCTestCase {
 
+    private struct LegacyHealthDataProvenance: Encodable {
+        let sampleCount: Int
+        let sourceNames: [String]
+        let deviceNames: [String]
+        let latestSampleDate: Date?
+    }
+
     // MARK: - Score Clamping
 
     func test_calculate_clampedTo100() {
@@ -164,6 +171,8 @@ final class RecoveryCalculatorTests: XCTestCase {
         let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
         let provenance = HealthDataProvenance(
             sampleCount: 6,
+            retainedSampleCount: 5,
+            duplicateSampleCount: 1,
             sourceNames: ["Health"],
             deviceNames: ["Apple Watch"],
             latestSampleDate: timestamp
@@ -178,6 +187,22 @@ final class RecoveryCalculatorTests: XCTestCase {
         let decoded = try JSONDecoder().decode(DailyMetrics.self, from: encoded)
 
         XCTAssertEqual(decoded.sleepingHRVProvenance, provenance)
+    }
+
+    func test_provenance_decodesRecordsWithoutDuplicateCount() throws {
+        let legacy = LegacyHealthDataProvenance(
+            sampleCount: 4,
+            sourceNames: ["Health"],
+            deviceNames: [],
+            latestSampleDate: nil
+        )
+
+        let encoded = try JSONEncoder().encode(legacy)
+        let decoded = try JSONDecoder().decode(HealthDataProvenance.self, from: encoded)
+
+        XCTAssertEqual(decoded.sampleCount, 4)
+        XCTAssertNil(decoded.retainedSampleCount)
+        XCTAssertNil(decoded.duplicateSampleCount)
     }
 
     // MARK: - Training recommendation

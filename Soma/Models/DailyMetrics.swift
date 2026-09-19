@@ -12,9 +12,27 @@ enum ScoreConfidence: String, Codable {
 
 struct HealthDataProvenance: Codable, Equatable {
     let sampleCount: Int
+    let retainedSampleCount: Int?
+    let duplicateSampleCount: Int?
     let sourceNames: [String]
     let deviceNames: [String]
     let latestSampleDate: Date?
+
+    init(
+        sampleCount: Int,
+        retainedSampleCount: Int? = nil,
+        duplicateSampleCount: Int = 0,
+        sourceNames: [String],
+        deviceNames: [String],
+        latestSampleDate: Date?
+    ) {
+        self.sampleCount = sampleCount
+        self.retainedSampleCount = retainedSampleCount
+        self.duplicateSampleCount = duplicateSampleCount
+        self.sourceNames = sourceNames
+        self.deviceNames = deviceNames
+        self.latestSampleDate = latestSampleDate
+    }
 }
 
 struct HealthQuantitySummary: Equatable {
