@@ -303,4 +303,27 @@ extension DailyMetrics {
     var stressState: ColorState {
         ColorState.stress(score: stressScore.rounded())
     }
+
+    var hasSufficientRecoveryData: Bool {
+        recoveryDataCoverage.map { $0 >= 0.50 }
+            ?? (sleepDurationHours.map { $0 > 0 } == true
+                && (sleepingHRV != nil || hrvAverage != nil || restingHR != nil))
+    }
+
+    var hasSufficientSleepData: Bool {
+        sleepDataCoverage.map { $0 >= 0.50 }
+            ?? (sleepDurationHours.map { $0 > 0 } == true)
+    }
+
+    var hasSufficientStrainData: Bool {
+        strainDataCoverage.map { $0 >= 0.50 } ?? (strainLoad != nil)
+    }
+
+    var hasSufficientStressData: Bool {
+        stressDataCoverage.map { $0 >= 0.50 } ?? (hrvAverage != nil || restingHR != nil)
+    }
+
+    var hasSufficientReadinessData: Bool {
+        hasSufficientRecoveryData && hasSufficientSleepData
+    }
 }

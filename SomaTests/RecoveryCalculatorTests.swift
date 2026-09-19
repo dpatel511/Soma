@@ -3,6 +3,32 @@ import XCTest
 
 final class RecoveryCalculatorTests: XCTestCase {
 
+    func test_readinessData_missingCoverageAndSignals_isInsufficient() {
+        let metrics = DailyMetrics(date: Date())
+
+        XCTAssertFalse(metrics.hasSufficientReadinessData)
+    }
+
+    func test_readinessData_currentCoverage_requiresRecoveryAndSleep() {
+        var metrics = DailyMetrics(date: Date())
+        metrics.recoveryDataCoverage = 0.75
+        metrics.sleepDataCoverage = 0.40
+        XCTAssertFalse(metrics.hasSufficientReadinessData)
+
+        metrics.sleepDataCoverage = 0.50
+        XCTAssertTrue(metrics.hasSufficientReadinessData)
+    }
+
+    func test_readinessData_legacySnapshot_infersAvailabilityFromRawSignals() {
+        let metrics = DailyMetrics(
+            date: Date(),
+            hrvAverage: 52,
+            sleepDurationHours: 7.5
+        )
+
+        XCTAssertTrue(metrics.hasSufficientReadinessData)
+    }
+
     private struct LegacyHealthDataProvenance: Encodable {
         let sampleCount: Int
         let sourceNames: [String]

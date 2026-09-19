@@ -108,7 +108,9 @@ struct TodayView: View {
     /// guidance is available (it carries the factors the detail view needs).
     @ViewBuilder
     private var heroCard: some View {
-        if viewModel.trainingGuidance != nil {
+        if !metrics.hasSufficientReadinessData {
+            insufficientReadinessCard
+        } else if viewModel.trainingGuidance != nil {
             Button {
                 Haptics.tap()
                 showReadinessDetail = true
@@ -119,6 +121,31 @@ struct TodayView: View {
         } else {
             heroSection
         }
+    }
+
+    private var insufficientReadinessCard: some View {
+        Button {
+            Haptics.tap()
+            showHealthData = true
+        } label: {
+            VStack(spacing: 12) {
+                Image(systemName: "waveform.path.ecg.rectangle")
+                    .font(.system(size: 34, weight: .medium))
+                    .foregroundStyle(Color.somaYellow)
+                Text("READINESS UNAVAILABLE").eyebrow()
+                Text("Soma needs enough sleep and recovery data before it can provide a readiness score or training target.")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.somaTextSecondary)
+                    .multilineTextAlignment(.center)
+                Label("Review Health Data", systemImage: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.somaYellow)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Space.xl)
+            .premiumCard(cornerRadius: Radius.xl, padding: Space.md, glow: Color.somaYellow)
+        }
+        .buttonStyle(.plain)
     }
 
     private var heroSection: some View {
@@ -584,7 +611,7 @@ struct TodayView: View {
     private func coreTile(_ m: DashboardMetric) -> some View {
         let score = m.score(from: metrics)
         let state = m.state(from: metrics)
-        let hasSufficientData = m.dataCoverage(from: metrics).map { $0 >= 0.5 } ?? true
+        let hasSufficientData = m.hasSufficientData(in: metrics)
         return Button { Haptics.tap(); activeMetric = m } label: {
             SignalTile(
                 icon: m.systemImage, title: m.title,

@@ -77,6 +77,15 @@ enum DashboardMetric: String, Identifiable {
         case .stress:   return m.stressDataCoverage
         }
     }
+
+    func hasSufficientData(in m: DailyMetrics) -> Bool {
+        switch self {
+        case .recovery: return m.hasSufficientRecoveryData
+        case .sleep:    return m.hasSufficientSleepData
+        case .strain:   return m.hasSufficientStrainData
+        case .stress:   return m.hasSufficientStressData
+        }
+    }
 }
 
 // MARK: - MetricInsightGenerator
@@ -315,6 +324,7 @@ struct MetricDetailView: View {
 
     private var history: [DailyMetrics] {
         viewModel.loadHistory(days: selectedRange.days)
+            .filter { metric.hasSufficientData(in: $0) }
     }
 
     private var analysisHistory: [DailyMetrics] {

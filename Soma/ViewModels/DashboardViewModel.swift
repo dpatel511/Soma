@@ -73,7 +73,7 @@ final class DashboardViewModel: ObservableObject {
             let (arcActive, arcDays) = detectIllnessArc(from: recentHistory, today: cached)
             illnessArcActive = arcActive
             illnessArcDays   = arcDays
-            trainingGuidance = computeGuidance(for: cached)
+            trainingGuidance = cached.hasSufficientReadinessData ? computeGuidance(for: cached) : nil
             updateSparklines()
             updateCoachingTips()
         }
@@ -115,11 +115,13 @@ final class DashboardViewModel: ObservableObject {
             illnessArcActive = arcActive
             illnessArcDays   = arcDays
 
-            // Compute guidance (reads illnessArcActive for illness override).
-            let guidance = computeGuidance(for: metrics)
+            // Neutral calculator fallbacks must not become actionable training advice.
+            // Guidance is withheld until both recovery and sleep meet the product's
+            // minimum 50% measured-input threshold.
+            let guidance = metrics.hasSufficientReadinessData ? computeGuidance(for: metrics) : nil
 
             // 3.3 — Persist readiness score so it can be trended and shown in the hero ring.
-            metrics.readinessScore = guidance.readinessScore
+            metrics.readinessScore = guidance?.readinessScore
 
             store.save(metrics)
             todayMetrics = metrics
@@ -137,9 +139,12 @@ final class DashboardViewModel: ObservableObject {
             )
 
             trainingGuidance = guidance
-            store.setWidgetTrainingLabel(guidance.activityLevel.shortTitle)
-
-            NotificationScheduler.shared.scheduleRecoveryNotification(metrics: metrics, guidance: guidance, settings: settings)
+            if let guidance {
+                store.setWidgetTrainingLabel(guidance.activityLevel.shortTitle)
+                NotificationScheduler.shared.scheduleRecoveryNotification(metrics: metrics, guidance: guidance, settings: settings)
+            } else {
+                store.setWidgetTrainingLabel("Collecting data")
+            }
 
             // 3.4 — Weekly narrative: generate and schedule every Monday.
             generateAndScheduleWeeklySummaryIfNeeded(metrics: metrics)
@@ -776,10 +781,10 @@ final class DashboardViewModel: ObservableObject {
 
     private func updateSparklines() {
         let recent = store.loadLast(7)
-        sparklineData["recovery"] = recent.map { $0.recoveryScore }
-        sparklineData["strain"]   = recent.map { $0.strainScore }
-        sparklineData["sleep"]    = recent.map { $0.sleepScore }
-        sparklineData["stress"]   = recent.map { $0.stressScore }
+        sparklineData["recovery"] = recent.filter { $0.hasSufficientRecoveryData }.map { $0.recoveryScore }
+        sparklineData["strain"]   = recent.filter { $0.hasSufficientStrainData }.map { $0.strainScore }
+        sparklineData["sleep"]    = recent.filter { $0.hasSufficientSleepData }.map { $0.sleepScore }
+        sparklineData["stress"]   = recent.filter { $0.hasSufficientStressData }.map { $0.stressScore }
     }
 
     // MARK: - Coaching Tips

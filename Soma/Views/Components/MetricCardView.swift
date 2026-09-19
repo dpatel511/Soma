@@ -8,6 +8,7 @@ struct MetricCardView: View {
     let sparklineValues: [Double]
     var weekDelta: Double? = nil
     var dataCoverage: Double? = nil
+    var dataAvailable: Bool? = nil
 
     @State private var appeared = false
 
@@ -17,7 +18,7 @@ struct MetricCardView: View {
     }
 
     private var hasSufficientData: Bool {
-        dataCoverage.map { $0 >= 0.5 } ?? true
+        dataAvailable ?? (dataCoverage.map { $0 >= 0.5 } ?? true)
     }
 
     private var isExcellent: Bool {

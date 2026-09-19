@@ -368,7 +368,8 @@ struct DashboardView: View {
                 state: metric.state(from: viewModel.todayMetrics),
                 sparklineValues: viewModel.sparklineData[metric.rawValue] ?? [],
                 weekDelta: weekDelta(for: metric),
-                dataCoverage: metric.dataCoverage(from: viewModel.todayMetrics)
+                dataCoverage: metric.dataCoverage(from: viewModel.todayMetrics),
+                dataAvailable: metric.hasSufficientData(in: viewModel.todayMetrics)
             )
         }
         .buttonStyle(.plain)
