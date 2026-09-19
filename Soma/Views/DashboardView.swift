@@ -135,7 +135,7 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showRawData) {
-                RawDataView(metrics: viewModel.todayMetrics, lastRefreshed: viewModel.lastRefreshed)
+                HealthDataDiagnosticsView(viewModel: viewModel)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
@@ -741,10 +741,35 @@ private struct WeeklySummarySheet: View {
 
 // MARK: - Raw Data Sheet
 
-private struct RawDataView: View {
-    let metrics: DailyMetrics
-    let lastRefreshed: Date?
+struct HealthDataDiagnosticsView: View {
+    @ObservedObject var viewModel: DashboardViewModel
     @Environment(\.dismiss) private var dismiss
+
+    private var metrics: DailyMetrics { viewModel.todayMetrics }
+
+    private var coreSignals: [(String, Bool)] {
+        [
+            ("Overnight HRV", metrics.sleepingHRV != nil),
+            ("Resting heart rate", metrics.restingHR != nil),
+            ("Sleep duration", metrics.sleepDurationHours != nil),
+            ("Heart-rate strain", metrics.strainLoad != nil)
+        ]
+    }
+
+    private var availableCoreSignalCount: Int {
+        coreSignals.filter { $0.1 }.count
+    }
+
+    private var refreshState: (label: String, color: Color, detail: String) {
+        guard let refreshed = viewModel.lastRefreshed else {
+            return ("Not synced", .somaRed, "Run a refresh after granting Apple Health access.")
+        }
+        let age = Date().timeIntervalSince(refreshed)
+        if age > 6 * 60 * 60 {
+            return ("Stale", .somaOrange, "The last successful refresh was more than 6 hours ago.")
+        }
+        return ("Current", .somaGreen, "Soma successfully refreshed HealthKit recently.")
+    }
 
     private let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -758,11 +783,79 @@ private struct RawDataView: View {
             ZStack {
                 Color.somaBackground.ignoresSafeArea()
                 List {
-                    Section("Fetch Info") {
-                        rawRow("Last Refreshed", value: lastRefreshed.map { timeFormatter.string(from: $0) } ?? "Never")
-                        rawRow("Data Date", value: timeFormatter.string(from: metrics.date))
+                    Section("Sync Status") {
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(refreshState.color)
+                                .frame(width: 9, height: 9)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(refreshState.label).fontWeight(.semibold)
+                                Text(refreshState.detail)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.somaTextSecondary)
+                            }
+                            Spacer()
+                        }
+                        Button {
+                            Task { await viewModel.refresh(force: true)?.value }
+                        } label: {
+                            HStack {
+                                Label("Refresh Apple Health", systemImage: "arrow.clockwise")
+                                Spacer()
+                                if viewModel.isLoading { ProgressView() }
+                            }
+                        }
+                        .disabled(viewModel.isLoading)
+                        if let error = viewModel.errorMessage {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(Color.somaRed)
+                        }
                     }
                     .listRowBackground(Color.somaCard)
+
+                    Section("Core Signal Coverage") {
+                        HStack {
+                            Text("Available today")
+                            Spacer()
+                            Text("\(availableCoreSignalCount) of \(coreSignals.count)")
+                                .foregroundStyle(availableCoreSignalCount == coreSignals.count ? Color.somaGreen : Color.somaOrange)
+                        }
+                        ForEach(coreSignals, id: \.0) { signal in
+                            HStack {
+                                Image(systemName: signal.1 ? "checkmark.circle.fill" : "exclamationmark.circle")
+                                    .foregroundStyle(signal.1 ? Color.somaGreen : Color.somaOrange)
+                                Text(signal.0)
+                                Spacer()
+                                Text(signal.1 ? "Available" : "Missing")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.somaTextSecondary)
+                            }
+                        }
+                        Text("A missing signal can mean Health access was denied, the Watch has not synced yet, or no measurement was recorded. Apple does not let third-party apps distinguish every case.")
+                            .font(.caption)
+                            .foregroundStyle(Color.somaTextSecondary)
+                    }
+                    .listRowBackground(Color.somaCard)
+
+                    Section("Fetch Info") {
+                        rawRow("Last Refreshed", value: viewModel.lastRefreshed.map { timeFormatter.string(from: $0) } ?? "Never")
+                        rawRow("Data Date", value: timeFormatter.string(from: metrics.date))
+                        rawRow("Algorithm Version", value: metrics.scoreAlgorithmVersion.map(String.init))
+                    }
+                    .listRowBackground(Color.somaCard)
+
+                    if let provenance = metrics.sleepingHRVProvenance {
+                        Section("Overnight HRV Provenance") {
+                            rawRow("Samples returned", value: "\(provenance.sampleCount)")
+                            rawRow("Samples used", value: provenance.retainedSampleCount.map(String.init))
+                            rawRow("Duplicates collapsed", value: provenance.duplicateSampleCount.map(String.init))
+                            rawRow("Source apps", value: provenance.sourceNames.isEmpty ? nil : provenance.sourceNames.joined(separator: ", "))
+                            rawRow("Devices", value: provenance.deviceNames.isEmpty ? nil : provenance.deviceNames.joined(separator: ", "))
+                            rawRow("Latest sample", value: provenance.latestSampleDate.map { timeFormatter.string(from: $0) })
+                        }
+                        .listRowBackground(Color.somaCard)
+                    }
 
                     Section("Heart") {
                         rawRow("HRV (avg)", value: metrics.hrvAverage.map { String(format: "%.1f ms", $0) })
@@ -833,7 +926,7 @@ private struct RawDataView: View {
                 }
                 .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Raw Data")
+            .navigationTitle("Health Data")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

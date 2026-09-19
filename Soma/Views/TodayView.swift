@@ -16,6 +16,7 @@ struct TodayView: View {
     @State private var showSettings = false
     @State private var showCheckIn = false
     @State private var showReadinessDetail = false
+    @State private var showHealthData = false
     @State private var expandedInsight: UUID?
 
     private var metrics: DailyMetrics { viewModel.todayMetrics }
@@ -68,6 +69,7 @@ struct TodayView: View {
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showHealthData) { HealthDataDiagnosticsView(viewModel: viewModel) }
             .sheet(isPresented: $showCheckIn) {
                 CheckInView(viewModel: CheckInViewModel(checkInStore: checkInStore, healthKit: healthKit))
             }
@@ -92,6 +94,9 @@ struct TodayView: View {
                 }
                 Button { Haptics.tap(); showSettings = true } label: {
                     Image(systemName: "gearshape").foregroundStyle(Color.somaTextSecondary)
+                }
+                Button { Haptics.tap(); showHealthData = true } label: {
+                    Image(systemName: "heart.text.square").foregroundStyle(Color.somaTextSecondary)
                 }
             }
         }
