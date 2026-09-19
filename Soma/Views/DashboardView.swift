@@ -769,7 +769,7 @@ struct HealthDataDiagnosticsView: View {
         if age > 6 * 60 * 60 {
             return ("Stale", .somaOrange, "The last successful refresh was more than 6 hours ago.")
         }
-        return ("Current", .somaGreen, "Soma successfully refreshed HealthKit recently.")
+        return ("Current", .somaGreen, "A refresh completed recently. Review signal coverage below for data that has not synced or is unavailable.")
     }
 
     private let timeFormatter: DateFormatter = {

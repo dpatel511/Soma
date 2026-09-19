@@ -228,30 +228,34 @@ final class DashboardViewModel: ObservableObject {
     /// Pure computation — no UI side effects. Used by both the live refresh and backfill.
     private func fetchAndComputeMetrics(for date: Date) async throws -> DailyMetrics {
         // Fetch all parallel data
-        async let hrv        = healthKit.fetchHRV(for: date)
-        async let rhr        = healthKit.fetchRestingHR(for: date)
-        async let hrSamples  = healthKit.fetchHeartRateSamples(for: date)
-        async let sleepFetch = healthKit.fetchSleepAnalysis(for: date)
-        async let calories   = healthKit.fetchActiveEnergy(for: date)
-        async let steps      = healthKit.fetchSteps(for: date)
-        async let vo2        = healthKit.fetchVO2Max()
-        async let respRate   = healthKit.fetchRespiratoryRate(for: date)
-        async let bloodOx    = healthKit.fetchBloodOxygen(for: date)
-        async let exerciseMin = healthKit.fetchExerciseMinutes(for: date)
+        // HealthKit permissions are granular and hardware support varies. Resolve each
+        // query independently so one unavailable signal does not discard every valid
+        // result from the refresh.
+        async let hrv: [Double] = (try? await healthKit.fetchHRV(for: date)) ?? []
+        async let rhr: Double? = try? await healthKit.fetchRestingHR(for: date)
+        async let hrSamples: [(Date, Double)] = (try? await healthKit.fetchHeartRateSamples(for: date)) ?? []
+        async let sleepFetch: SleepData = (try? await healthKit.fetchSleepAnalysis(for: date)) ?? .empty
+        async let calories: Double = (try? await healthKit.fetchActiveEnergy(for: date)) ?? 0
+        async let steps: Double = (try? await healthKit.fetchSteps(for: date)) ?? 0
+        async let vo2: Double? = try? await healthKit.fetchVO2Max()
+        async let respRate: Double? = try? await healthKit.fetchRespiratoryRate(for: date)
+        async let bloodOx: Double? = try? await healthKit.fetchBloodOxygen(for: date)
+        async let exerciseMin: Double? = try? await healthKit.fetchExerciseMinutes(for: date)
         // Priority 2 data sources
-        async let standHoursFetch      = healthKit.fetchStandHours(for: date)
-        async let walkingHRFetch       = healthKit.fetchWalkingHRAverage(for: date)
-        async let mindfulMinutesFetch  = healthKit.fetchMindfulMinutes(for: date)
-        async let wristTempFetch       = healthKit.fetchWristTemperature(for: date)
+        async let standHoursFetch: Int = (try? await healthKit.fetchStandHours(for: date)) ?? 0
+        async let walkingHRFetch: Double? = try? await healthKit.fetchWalkingHRAverage(for: date)
+        async let mindfulMinutesFetch: Double = (try? await healthKit.fetchMindfulMinutes(for: date)) ?? 0
+        async let wristTempFetch: Double? = try? await healthKit.fetchWristTemperature(for: date)
 
         let (hrvValues, rhrValue, hrData, sleepData, activeCalories, stepCount,
              vo2Max, respRateVal, bloodOxygen, exerciseMinutes,
-             standHoursVal, walkingHRVal, mindfulMinsVal) = try await (
+             standHoursVal, walkingHRVal, mindfulMinsVal) = await (
                 hrv, rhr, hrSamples, sleepFetch, calories, steps, vo2, respRate,
                 bloodOx, exerciseMin,
                 standHoursFetch, walkingHRFetch, mindfulMinutesFetch
              )
-        let wristTempVal = try? await wristTempFetch
+        let wristTempVal = await wristTempFetch
+        try Task.checkCancellation()
 
         // Fetch workouts independently so a failure here doesn't zero out all scores
         let fetchedWorkouts = (try? await healthKit.fetchWorkouts(for: date)) ?? []
@@ -270,12 +274,13 @@ final class DashboardViewModel: ObservableObject {
         var sleepingHRV: Double? = nil
         var sleepingHRVProvenance: HealthDataProvenance? = nil
         if let start = sleepData.sleepStartTime, let end = sleepData.sleepEndTime {
-            async let sHR  = healthKit.fetchSleepingHR(from: start, to: end)
-            async let sHRV = healthKit.fetchSleepingHRVSummary(from: start, to: end)
-            let (fetchedSleepingHR, hrvSummary) = try await (sHR, sHRV)
+            async let sHR: Double? = try? await healthKit.fetchSleepingHR(from: start, to: end)
+            async let sHRV: HealthQuantitySummary? = try? await healthKit.fetchSleepingHRVSummary(from: start, to: end)
+            let (fetchedSleepingHR, hrvSummary) = await (sHR, sHRV)
+            try Task.checkCancellation()
             sleepingHR = fetchedSleepingHR
-            sleepingHRV = hrvSummary.value
-            sleepingHRVProvenance = hrvSummary.provenance
+            sleepingHRV = hrvSummary?.value
+            sleepingHRVProvenance = hrvSummary?.provenance
         }
 
         // Baselines use prior stored days only. This avoids leaking today's value—or

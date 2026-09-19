@@ -189,6 +189,8 @@ Replace categorical physiological claims with calibrated language:
 - **Implemented locally; CI pending:** Recovery trends now plot overnight SDNN against a prior-night log-domain personal range, break lines across missing nights, mark missing observations, and label score-algorithm version boundaries.
 - **Implemented locally; CI pending:** New version-3 records persist overnight-HRV provenance: observed sample count, HealthKit source names, device names when supplied, and the latest sample timestamp. The UI does not claim HealthKit synchronization is complete because HealthKit exposes no definitive completion flag.
 - **Implemented locally; CI pending:** Simultaneous HR and HRV observations are collapsed to one median value before daily aggregation or strain calculation. Distinct timestamps remain untouched; overnight provenance separately reports returned samples, retained samples, and duplicates collapsed. Multiple sources are disclosed rather than silently discarding an entire source.
+- **Implemented locally; CI pending:** Readiness, training targets, recovery notifications, and score trends are withheld below the measured-input threshold instead of presenting neutral calculator fallbacks as observations.
+- **Implemented locally; CI pending:** HealthKit reads fail independently. An unavailable optional signal no longer discards valid sleep, heart-rate, HRV, and activity results from the same refresh.
 
 Implemented in score algorithm version 2:
 
